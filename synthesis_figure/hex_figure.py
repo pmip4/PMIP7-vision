@@ -167,8 +167,8 @@ HEX_LAYOUT = {
     'SWS': (2, 4),  'SES': (3, 4),
     'SSA': (2, 3),
 
-    # ── Antarctica ────────────────────────────────────────────────────────────
-    'WAN': (6, 0),  'EAN': (7, 0),
+    # ── Antarctica (tucked into the South Atlantic gap) ───────────────────────
+    'WAN': (5, 1),  'EAN': (6, 1),
 
     # ── Europe ────────────────────────────────────────────────────────────────
     'NEU': (6, 10),
@@ -197,7 +197,7 @@ SQRT3 = np.sqrt(3)
 CONTINENT_LABELS = {
     'NORTH AMERICA': (1.8 * SQRT3, 16.9),
     'SOUTH AMERICA': (2.75 * SQRT3, 2.7),
-    'ANTARCTICA':    (7.0 * SQRT3, -1.8),
+    'ANTARCTICA':    (6.0 * SQRT3, -0.3),
     'EUROPE':        (6.0 * SQRT3, 16.9),
     'AFRICA':        (6.75 * SQRT3, 4.2),
     'ASIA':          (10.0 * SQRT3, 16.9),
@@ -241,10 +241,10 @@ def draw_legend_inset(fig, rect=(0.015, 0.015, 0.15, 0.20)):
                 path_effects=[pe.withStroke(linewidth=1.8, foreground='white')])
 
     # Variable labels below the hex
-    ax.text(cx - r * 0.55, cy - r * 1.25, 'Temperature', ha='center', va='top',
-            fontsize=8.5, fontweight='bold', color=TEMP_CMAP(0.85))
-    ax.text(cx + r * 0.55, cy - r * 1.25, 'Precipitation', ha='center', va='top',
-            fontsize=8.5, fontweight='bold', color=PRECIP_CMAP(0.15))
+    ax.text(cx - r * 0.85, cy - r * 1.25, 'Temperature', ha='center', va='top',
+            fontsize=8, fontweight='bold', color=TEMP_CMAP(0.85))
+    ax.text(cx + r * 0.85, cy - r * 1.25, 'Precipitation', ha='center', va='top',
+            fontsize=8, fontweight='bold', color=PRECIP_CMAP(0.15))
 
     ax.set_xlim(-r * 1.7, r * 1.7)
     ax.set_ylim(-r * 1.7, r * 1.7)
@@ -262,9 +262,9 @@ def make_figure():
     data = compute_regional_means(regions, abbrevs)
 
     # ── Figure layout ─────────────────────────────────────────────────────────
-    fig = plt.figure(figsize=(20, 14))
+    fig = plt.figure(figsize=(19, 12.5))
     fig.patch.set_facecolor(OCEAN_COLOR)
-    ax = fig.add_axes([0.01, 0.16, 0.98, 0.75])
+    ax = fig.add_axes([0.01, 0.03, 0.90, 0.88])
     ax.set_aspect('equal')
     ax.axis('off')
 
@@ -295,26 +295,26 @@ def make_figure():
     # Auto-scale axes with a little padding
     all_x = [hex_center(*HEX_LAYOUT[a])[0] for a in abbrevs if a in HEX_LAYOUT]
     all_y = [hex_center(*HEX_LAYOUT[a])[1] for a in abbrevs if a in HEX_LAYOUT]
-    pad = 2.0 * HEX_R
+    pad = 1.5 * HEX_R
     ax.set_xlim(min(all_x) - pad, max(all_x) + pad)
-    ax.set_ylim(min(all_y) - 2.5 * HEX_R, max(all_y) + 2.5 * HEX_R)
+    ax.set_ylim(min(all_y) - 2.2 * HEX_R, max(all_y) + 2.5 * HEX_R)
 
     # ── Legend inset (bottom-left) ─────────────────────────────────────────
     draw_legend_inset(fig)
 
-    # ── Colorbars (centred at bottom) ──────────────────────────────────────
-    ax_tas = fig.add_axes([0.30, 0.075, 0.18, 0.018])
+    # ── Colorbars (vertical, right edge) ───────────────────────────────────
+    ax_tas = fig.add_axes([0.925, 0.50, 0.013, 0.33])
     cb_tas = ColorbarBase(ax_tas, cmap=TEMP_CMAP,
                           norm=TwoSlopeNorm(vmin=-TAS_VMAX, vcenter=0, vmax=TAS_VMAX),
-                          orientation='horizontal', extend='both',
+                          orientation='vertical', extend='both',
                           label='Temperature change (°C)')
     ax_tas.tick_params(labelsize=8, length=2)
     cb_tas.outline.set_linewidth(0.5)
 
-    ax_pr = fig.add_axes([0.55, 0.075, 0.18, 0.018])
+    ax_pr = fig.add_axes([0.925, 0.10, 0.013, 0.33])
     cb_pr = ColorbarBase(ax_pr, cmap=PRECIP_CMAP,
                          norm=TwoSlopeNorm(vmin=-PR_VMAX, vcenter=0, vmax=PR_VMAX),
-                         orientation='horizontal', extend='both',
+                         orientation='vertical', extend='both',
                          label='Precipitation change (%)')
     ax_pr.tick_params(labelsize=8, length=2)
     cb_pr.outline.set_linewidth(0.5)
