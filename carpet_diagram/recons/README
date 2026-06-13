@@ -1,0 +1,8 @@
+This directory contains some reconstructions against which to benchmark the model simulations.
+
+midHolocene
+
+Bartlein_mat.csv relates to the Bartlein et al (2011) pollen reconstructions. The data has been extracted into a csv in this repo: https://github.com/chrisbrierley/PMIP4-midHolocene/blob/master/recons/Bartlein/mat.csv
+
+temp12k_anom6k_mat.csv relates to the extracted data from the temp12k database that is described in Brierley et al (2020). It can be
+found at https://github.com/chrisbrierley/PMIP4-midHolocene/blob/master/recons/anom6k/anom6k_annual_grid_ave.csv

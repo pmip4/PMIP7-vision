@@ -1,0 +1,13 @@
+The goal of this directory is to create an scientific figure known as either a 'portrait plot' or a 'carpet diagram'. This will be an update of the IPCC AR5 Paleo Benchmarking figure (IPCC AR5 WG1 Figure 9.12). It will only look at a single variable - annual mean temperature, an instead include multiple time periods and reconstruction compilations as its rows. An example of the kind of figure, and the code used to create is, in ESMValTool at https://github.com/ESMValGroup/ESMValTool/blob/main/esmvaltool/recipes/recipe_portrait_CMIP.yml. The figure visualises the root-mean-squared difference between a model and (reconstructed proxy) observations.
+
+There are 4 time periods of interest: midHolocene, lig127k, lgm, midPliocene-eoi400 
+
+The recons/ contains some reconstructions against which to benchmark the model simulations. These csv files are all already anomalies.
+
+- Bartlein_mat.csv relates to the Bartlein et al (2011) pollen reconstructions. The data has been extracted into a csv in this repo: https://github.com/chrisbrierley/PMIP4-midHolocene/blob/master/recons/Bartlein/mat.csv
+
+- temp12k_anom6k_mat.csv relates to the extracted data from the temp12k database that is described in Brierley et al (2020). It can be found at https://github.com/chrisbrierley/PMIP4-midHolocene/blob/master/recons/anom6k/anom6k_annual_grid_ave.csv
+
+- The recons/lig127k contains csv files taken from the supplement of Otto-Bliesner et al (2021). The reconstructions come from two compilations, Hoffman and Capron, and are here subdivided into csv by location. They should be combined into two single array from each of two compilations.
+
+cvdp_output_by_experiment/ contains a netcdf file for each simulation, named in a structure of model_experiment.cvdp_data.years.nc. The only relevant field is tas_spatialmean_ann, which the annual mean temperature that the proxy data reconstructs
