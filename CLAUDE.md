@@ -51,31 +51,34 @@ See `synthesis_figure/README.md` for unresolved decisions on: signal/confidence 
 
 # carpet_diagram/
 
-Benchmarks each model's annual-mean temperature anomaly against proxy reconstruction compilations and reports RMSE — the building block of the carpet/portrait plot. Currently implemented for `lig127k` only; the long-term target also covers midHolocene, lgm, midPliocene-eoi400.
+Benchmarks each model's annual-mean temperature anomaly against proxy reconstruction compilations and reports RMSE — the building block of the carpet/portrait plot. Implemented for `lig127k` and `midHolocene`; the long-term target also covers lgm, midPliocene-eoi400.
 
-## Building/Running the Notebook
+## Building/Running the Notebooks
 
-`carpet_diagram_lig127k.ipynb` is generated from `build_notebook.py` (the script is the source of truth — edit it, not the `.ipynb` directly). Regenerate and execute with:
+`build_notebook.py` is the source of truth — edit it, not the `.ipynb` files. It generates one notebook per period (`carpet_diagram_<period>.ipynb`) from a shared template: Steps 2–4 (model anomalies, sampling, RMSE) are identical across periods, and only Step 1 (reconstruction parsing) is period-specific, defined in the `PERIODS` list. Regenerate and execute with:
 
 ```bash
 source activate my-cli-py
 cd carpet_diagram
-python build_notebook.py        # writes carpet_diagram_lig127k.ipynb
+python build_notebook.py        # writes carpet_diagram_lig127k.ipynb and carpet_diagram_midHolocene.ipynb
 jupyter nbconvert --to notebook --execute --inplace carpet_diagram_lig127k.ipynb
+jupyter nbconvert --to notebook --execute --inplace carpet_diagram_midHolocene.ipynb
 ```
 
-The notebook reads its working directory via `os.getcwd()`, so run it from `carpet_diagram/`.
+The notebooks read their working directory via `os.getcwd()`, so run them from `carpet_diagram/`. Add a new period by appending a config (with its Step 1 recon-parsing cell) to `PERIODS`.
 
 ## Data Sources
 
-- **CVDP model output**: `cvdp_output_by_experiment/` is a **symlink** to `/data/oacd/CVDP/by_experiment/`. One NetCDF per simulation named `model_experiment.cvdp_data.years.nc`; the only field used is `tas_spatialmean_ann` (annual-mean near-surface temperature, °C). Each model is on its **own native grid**; lig127k and piControl share a model's grid. Auxiliary `.monsoon.` / `.tas.indices.` / `.tmp` files must be filtered out. Some grids (e.g. LOVECLIM piControl) carry duplicate longitude values that break interpolation — `load_field` de-duplicates coordinates.
-- **Reconstructions**: `recons/lig127k/` holds three region-split CSVs from the Otto-Bliesner et al. (2021) supplement (Tables S2–S4). Their column layouts differ but all share `Compilation reference`, `Latitude`, `Longitude`, `Anom`. Rows split into two compilations by reference string: **Hoffman** (78 pts, global SST) and **Capron** (7 pts, high-latitude). Values are already anomalies.
+- **CVDP model output**: `cvdp_output_by_experiment/` is a **symlink** to `/data/oacd/CVDP/by_experiment/`. One NetCDF per simulation named `model_experiment.cvdp_data.years.nc`; the only field used is `tas_spatialmean_ann` (annual-mean near-surface temperature, °C). Each model is on its **own native grid**; the experiment and piControl share a model's grid. Auxiliary `.monsoon.` / `.tas.indices.` / `.tmp` files must be filtered out. Some grids (e.g. LOVECLIM piControl) carry duplicate longitude values that break interpolation — `load_field` de-duplicates coordinates. A few CVDP files lack `tas_spatialmean_ann` entirely (e.g. EC-EARTH-2-2, KCM1-2-2, NorESM2-LM midHolocene) — Step 2 checks for the variable and drops those models, logging which. Use the plain `midHolocene` CVDP subdirectory, **not** `midHolocene-cal-adj`.
+- **Reconstructions**: each period has its own `recons/<period>/` directory; values are already anomalies, and each period's Step 1 cell normalises its files to the shared `compilation, reference, site, Proxy, Latitude, Longitude, Anom` schema.
+  - `recons/lig127k/` holds three region-split CSVs from the Otto-Bliesner et al. (2021) supplement (Tables S2–S4), header row 2. Column layouts differ but all share `Compilation reference`, `Latitude`, `Longitude`, `Anom`. Rows split into two compilations by reference string: **Hoffman** (78 pts, global SST) and **Capron** (7 pts, high-latitude).
+  - `recons/midHolocene/` holds two compilations, one CSV each, plain header: **Bartlein** (`Bartlein_mat.csv`, 635 pts, pollen MAT, anomaly column `mat_anm_mean`) and **Temp12k** (`temp12k_anom6k_mat.csv`, 335 pts, multiproxy, anomaly column `anom`). Both use plain `lat`/`lon` columns; some Bartlein headers carry leading spaces (stripped on load).
 
 ## Pipeline
 
-1. Parse + normalise the recon CSVs (header row 2), drop blank trailing rows, split into Hoffman/Capron.
-2. Pair each lig127k model with its piControl, compute `lig127k − piControl` anomaly on the native grid (regrid control if grids ever differ).
+1. Parse + normalise the recon CSVs (Step 1, period-specific) into the shared schema and the two compilations for that period.
+2. Pair each experiment model with its piControl, compute `<experiment> − piControl` anomaly on the native grid (regrid control if grids ever differ); drop models whose CVDP file lacks the tas field.
 3. Bilinearly sample each model's anomaly field at every proxy location — model lon is 0–360°, proxy lon −180–180°, so targets are wrapped and the field is made cyclic in longitude first.
 4. Compute per-model RMSE (and bias) against each compilation.
 
-Outputs land in `carpet_diagram/output/`: `recon_points_lig127k.csv`, `model_anom_at_recon_lig127k.csv`, `rmse_long_lig127k.csv`, `rmse_summary_lig127k.csv`.
+Outputs land in `carpet_diagram/output/`, one set per period: `recon_points_<period>.csv`, `model_anom_at_recon_<period>.csv`, `rmse_long_<period>.csv`, `rmse_summary_<period>.csv`. `carpet_figure.py` auto-discovers every `rmse_long_*.csv` and renders all periods/compilations as rows — no edit needed when a period is added.

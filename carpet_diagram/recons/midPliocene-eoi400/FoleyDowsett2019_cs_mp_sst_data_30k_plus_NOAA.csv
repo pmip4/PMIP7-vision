@@ -1,0 +1,40 @@
+Location or site,Latitude,Longitude,Uk'37 SSTC,N,Standard dev.,Reference,Data URL,,,,HadISST,Anom,NOAAERSST5,
+ Monte dei Corvi PP1,43.35,13.34,25.8,6,0.239,"Herbert and others, 2018a",https://doi.org/10.1594/PANGAEA.885603,,,,17.36,8.44,17.23,8.57
+DSDP 593,-40.51,167.67,16,3,0.916,"McClymont and others, 2016",https://www1.ncdc.noaa.gov/pub/data/paleo/contributions_by_author/mcclymont2016/mcclymont2016-dsdp593.txt,,,,15.03,0.97,15.49,0.51
+DSDP 594,-45.52,174.95,11.9,3,1.302,"Herbert and others, 2016",https://www.ncdc.noaa.gov/paleo/study/25390,,,,10.87,1.03,10.66,1.24
+DSDP 607,41,-32.97,21.2,7,0.295,"Lawrence and others, 2010",https://www1.ncdc.noaa.gov/pub/data/paleo/contributions_by_author/lawrence2010/lawrence2010.txt,,,,12.55,8.65,17.76,3.44
+DSDP 609,49.88,-24.23,18.5,6,0.667,"Lawrence and Woodard, 2017",https://www1.ncdc.noaa.gov/pub/data/paleo/contributions_by_author/lawrence2017/lawrence2017-609b.txt,,,,5.94,12.56,13.35,5.15
+ODP 625,28.83,-87.16,27.6,3,0.078,"Dowsett and others, 2017",https://doi.org/10.5066/F7959G1S,,,,23.04,4.56,25.30,2.30
+ODP 642,67.23,2.93,13.8,17,0.497,"Bachem and others, 2016",https://doi.pangaea.de/10.1594/PANGAEA.865205,,,,7.16,6.64,6.78,7.02
+ODP 662,-1.39,-11.74,27.4,13,0.137,"Herbert and others, 2010",https://www1.ncdc.noaa.gov/pub/data/paleo/contributions_by_author/herbert2010/herbert2010.txt,,,,28.37,-0.97,25.31,2.09
+ODP 677,1.2,-84.73,28.4,5,0.183,"Robinson and others, 2008",https://pubs.usgs.gov/ds/353/,,,,28.24,0.16,26.12,2.28
+ODP 722,16.62,59.8,27.9,16,0.116,"Herbert and others, 2016",https://www.ncdc.noaa.gov/paleo/study/25390,,,,26.14,1.76,26.10,1.80
+ODP 846,-3.1,-90.82,26.3,8,0.26,"Herbert and others, 2016",https://www.ncdc.noaa.gov/paleo/study/25390,,,,28.66,-2.36,23.78,2.52
+ODP 882,50.36,167.6,9.5,1,-,"Haug and Sarnthein, 2005",https://doi.pangaea.de/10.1594/PANGAEA.315092,,,,5.38,4.12,5.64,3.86
+ODP 883,51.2,167.77,8.7,2,1.039,"Herbert and others, 2016",https://www.ncdc.noaa.gov/paleo/study/25390,,,,5.31,3.39,5.41,3.29
+ODP 907,69.25,12.7,6.1,3,2.375,"Herbert and others, 2018b",https://doi.pangaea.de/10.1594/PANGAEA.885594,,,,7.13,-1.03,6.33,-0.23
+ODP 909,78.59,3.07,15.1,1,-,"Dowsett and others, 2017",https://doi.org/10.5066/F7959G1S,,,,1.55,13.55,0.50,14.60
+*ODP 925,4.2,-43.49,28.7,3,0.316,"Dowsett and others, 2017",https://doi.org/10.5066/F7959G1S,,,,28.36,0.34,27.31,1.39
+ODP 958,24,-20,25,2,0.106,"Dowsett and others, 2017",https://doi.org/10.5066/F7959G1S,,,,25.30,-0.30,21.51,3.49
+ODP 978,36.23,-2.05,27.2,8,0.148,"Kh-lifi and others, 2014",https://doi.pangaea.de/10.1594/PANGAEA.863960,,,,17.66,9.54,18.10,9.10
+ODP 982,57.52,-15.87,17.2,10,0.435,"Herbert and others, 2016",https://www.ncdc.noaa.gov/paleo/study/25390,,,,4.64,12.56,10.67,6.53
+ODP 999,12.75,-78.73,28,2,0.113,"Badger and others, 2013",https://doi.pangaea.de/10.1594/PANGAEA.836116,,,,27.50,0.50,27.59,0.41
+ODP 1010,29.97,-118.1,17.4,2,1.64,"Herbert and others, 2016",https://www.ncdc.noaa.gov/paleo/study/25390,,,,22.33,-4.93,17.08,0.32
+ODP 1018,36.99,-123.28,15.2,6,0.337,"Dowsett and others, 2017",https://doi.org/10.5066/F7959G1S,,,,17.66,-2.46,13.97,1.23
+ODP 1062,28.25,-74.41,22.9,3,0.167,"Dowsett and others, 2017",https://doi.org/10.5066/F7959G1S,,,,23.04,-0.14,25.22,-2.32
+ODP 1073,39.23,-72.28,23.4,6,0.125,"Dowsett and others, 2017",https://doi.org/10.5066/F7959G1S,,,,14.80,8.60,13.46,9.94
+ODP 1081,-19.62,11.32,24.3,1,-,"Rosell-Mel- and others, 2014a",https://doi.pangaea.de/10.1594/PANGAEA.841833,,,,18.07,6.23,16.09,8.21
+ODP 1082,-21.1,11.82,25.9,5,0.327,"Etourneau and others, 2009",https://doi.pangaea.de/10.1594/PANGAEA.729403,,,,18.05,7.85,16.51,9.39
+OPD 1084,-25.52,13.03,24.6,2,0.354,"Rosell-Mel- and others, 2014b",https://doi.pangaea.de/10.1594/PANGAEA.841834,,,,16.41,8.19,16.25,8.35
+ODP 1087,-31.47,15.32,20.6,13,0.511,"Petrick and others, 2018",https://doi.pangaea.de/10.1594/PANGAEA.888605,,,,17.34,3.26,16.93,3.67
+OPD 1088,-41.13,13.57,16.9,1,-,"Herbert and others, 2016",https://www.ncdc.noaa.gov/paleo/study/25390,,,,12.12,4.78,11.63,5.27
+*OPD 1115,-9.19,151.57,28.9,4,0.047,"Dowsett and others, 2017",https://doi.org/10.5066/F7959G1S,,,,28.08,0.82,28.00,0.90
+ODP 1125,-42.55,-178.17,19.7,16,0.624,"Caballero-Gill and others, 2019",https://doi.pangaea.de/10.1594/PANGAEA.898162,,,,13.90,5.80,14.54,5.16
+OPD 1143,9.37,113.28,28.9,7,0.017,"Li and others, 2011",https://doi.pangaea.de/10.1594/PANGAEA.786444,,,,28.06,0.84,28.44,0.46
+ODP 1146,19.46,116.27,28.6,20,0.036,"Dowsett and others, 2017",https://doi.org/10.5066/F7959G1S,,,,26.29,2.31,25.98,2.62
+ODP 1241,5.85,-86.45,28.2,1,-,"Herbert and others, 2016",https://www.ncdc.noaa.gov/paleo/study/25390,,,,28.32,-0.12,27.73,0.47
+IODP 1308,49.88,-24.24,17.2,7,0.25,"Dowsett and others, 2017",https://doi.org/10.5066/F7959G1S,,,,5.94,11.26,13.35,3.85
+IODP 1313,41,-32.95,20.9,28,0.689,"Dowsett and others, 2017",https://doi.org/10.5066/F7959G1S,,,,12.55,8.35,17.76,3.14
+IODP 1425,39.49,134.44,18.5,1,-,"Wittkopp and others, 2017",https://doi.pangaea.de/10.1594/PANGAEA.879792,,,,13.22,5.28,12.77,5.73
+,,,,,,,,,,,,,,
+* some readings incorporated in calculations are at the maximum for this paleothermometry method. Actual SST may be higher.,,,,,,,,,,,,,,

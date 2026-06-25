@@ -28,7 +28,7 @@ OUT_DIR = os.path.join(SCRIPT_DIR, 'output')
 # Preferred period ordering (oldest→youngest is not meaningful here; this is
 # just the row order). Any period found but not listed is appended after these.
 PERIOD_ORDER = ['midPliocene-eoi400', 'lgm', 'lig127k', 'midHolocene']
-COMPILATION_ORDER = ['Hoffman', 'Capron']
+COMPILATION_ORDER = ['Hoffman', 'Capron', 'Bartlein', 'Temp12k']
 
 # Cells backed by fewer than this many proxy points are flagged (small samples
 # give noisy RMSE — e.g. the Capron lig127k subset has only ~7 points).

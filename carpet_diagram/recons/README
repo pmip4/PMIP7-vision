@@ -2,7 +2,18 @@ This directory contains some reconstructions against which to benchmark the mode
 
 midHolocene
 
-Bartlein_mat.csv relates to the Bartlein et al (2011) pollen reconstructions. The data has been extracted into a csv in this repo: https://github.com/chrisbrierley/PMIP4-midHolocene/blob/master/recons/Bartlein/mat.csv
-
-temp12k_anom6k_mat.csv relates to the extracted data from the temp12k database that is described in Brierley et al (2020). It can be
+* Bartlein_mat.csv relates to the Bartlein et al (2011) pollen reconstructions. The data has been extracted into a csv in this repo: https://github.com/chrisbrierley/PMIP4-midHolocene/blob/master/recons/Bartlein/mat.csv
+* temp12k_anom6k_mat.csv relates to the extracted data from the temp12k database that is described in Brierley et al (2020). It can be
 found at https://github.com/chrisbrierley/PMIP4-midHolocene/blob/master/recons/anom6k/anom6k_annual_grid_ave.csv
+* The paleodata assimilation product by Erb et al (2022). It was downloaded from https://zenodo.org/records/6426332/files/holocene_reconstruction.nc and averaged between 5.5-6.5ka.
+
+Last Glacial Maximum
+* The Cleator et al (2020) reconstructionis actually a data assimilation product. It weas downloaded from https://researchdata.reading.ac.uk/244/1/LGM_reconstruction.csv adn only the MAT column is relevant
+* The Osman file is the last Glacial Maximum Reanalysis from Osman et al (2020). It is averaged between the 20900 and 21100 bins. Downloaded from https://www.ncei.noaa.gov/pub/data/paleo/reconstructions/osman2021/LGMR_SAT_climo.nc
+
+last interglacial (lig127k)
+* The Hoffman et al (2017) and Capron et al (2017) reconstruction compilations are taken from the Supplement of Otto-Bleisner et al (2020) from https://cp.copernicus.org/articles/17/63/2021/cp-17-63-2021-supplement.zip
+
+midPliocene-eoi400
+* The data from the Foley & Dowestt (2019). It was published in Haywood et al (2020), who used the NOAA ERSST anomalies. Downloaded from https://cp.copernicus.org/articles/16/2095/2020/cp-16-2095-2020-supplement.zip
+
