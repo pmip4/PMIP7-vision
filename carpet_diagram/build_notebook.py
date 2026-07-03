@@ -108,7 +108,102 @@ print('wrote', recon_out)
 recon.head()"""
 
 
+LGM_STEP1_MD = """## Step 1 — Reconstruction compilations
+
+Two LGM (21 ka) compilations, both near-global gridded anomaly products (so each point
+gets a `cos(latitude)` weight for an area-fair RMSE):
+
+- **Cleator** — the Cleator et al. (2020) vegetation-model-inversion data assimilation.
+  A long metadata preamble precedes a `#`-prefixed header row (line 77); the only relevant
+  field is `MAT` (mean-annual-temperature anomaly, °C) at each land grid cell.
+- **Osman** — the Last Glacial Maximum Reanalysis (Osman et al. 2021), the ensemble-mean
+  `sat` field from `Osman_LGMR_21ka_SAT_anom_climo.nc`, already differenced to a 21 ka −
+  (0–1 ka) anomaly. The 96×144 grid is flattened to points, dropping fill values."""
+
+LGM_STEP1_CODE = """# --- Cleator: gridded land MAT anomalies from a CSV with a preamble ---
+CLE_COLS = ['lat', 'lon', 'MI', 'MAP', 'MAT', 'MTCO', 'MTWA', 'GDD5',
+            'MI_SD', 'MAP_SD', 'MAT_SD', 'MTCO_SD', 'MTWA_SD', 'GDD5_SD']
+cle = pd.read_csv(os.path.join(RECON_DIR, 'cleator2020_recon.csv'),
+                  skiprows=77, header=None, names=CLE_COLS)
+cle = cle.apply(pd.to_numeric, errors='coerce').dropna(subset=['lat', 'lon', 'MAT'])
+cleator = pd.DataFrame({
+    'compilation': 'Cleator', 'reference': 'Cleator et al. 2020', 'site': np.nan,
+    'Proxy': 'pollen MAT (assim.)',
+    'Latitude': cle['lat'].astype(float), 'Longitude': cle['lon'].astype(float),
+    'Anom': cle['MAT'].astype(float),
+})
+cleator['source_table'] = 'cleator2020_recon.csv'
+
+# --- Osman: flatten the gridded LGMR SAT anomaly field to points ---
+ds = xr.open_dataset(os.path.join(RECON_DIR, 'Osman_LGMR_21ka_SAT_anom_climo.nc'),
+                     decode_times=False)
+sat = ds['sat'].where(np.abs(ds['sat']) < 1e30)
+lon2d, lat2d = np.meshgrid(sat['lon'].values, sat['lat'].values)
+osman = pd.DataFrame({
+    'compilation': 'Osman', 'reference': 'Osman et al. 2021', 'site': np.nan,
+    'Proxy': 'LGMR SAT (assim.)',
+    'Latitude': lat2d.ravel().astype(float), 'Longitude': lon2d.ravel().astype(float),
+    'Anom': sat.values.ravel().astype(float),
+})
+osman['source_table'] = 'Osman_LGMR_21ka_SAT_anom_climo.nc'
+
+recon = pd.concat([cleator, osman], ignore_index=True)
+recon = recon.dropna(subset=['Latitude', 'Longitude', 'Anom'])
+# Both are regular lat/lon grids: cos-latitude weight makes the RMSE area-fair.
+recon['weight'] = np.cos(np.deg2rad(recon['Latitude']))
+
+print(recon.groupby('compilation').size())
+recon_out = os.path.join(OUT_DIR, f'recon_points_{EXPERIMENT}.csv')
+recon.to_csv(recon_out, index=False)
+print('wrote', recon_out)
+recon.head()"""
+
+
+MIDPLIO_STEP1_MD = """## Step 1 — Reconstruction compilation
+
+One midPliocene (mid-Piacenzian, ~3.2 Ma; eoi400 boundary conditions) compilation:
+
+- **Foley-Dowsett** — the Foley & Dowsett (2019) alkenone (Uk'37) sea-surface-temperature
+  sites, as used by Haywood et al. (2020). The file carries two anomaly columns; following
+  Haywood et al. we use the **NOAA ERSST5** anomaly (SST minus the NOAA ERSST5 modern
+  climatology), which is the last, unnamed column (`Unnamed: 14`)."""
+
+MIDPLIO_STEP1_CODE = """df = pd.read_csv(os.path.join(RECON_DIR,
+                 'FoleyDowsett2019_cs_mp_sst_data_30k_plus_NOAA.csv'))
+# The trailing unnamed column is SST minus the NOAA ERSST5 modern climatology.
+anom_col = 'Unnamed: 14'
+recon = pd.DataFrame({
+    'compilation': 'Foley-Dowsett', 'reference': 'Foley & Dowsett 2019',
+    'site': df['Location or site'].astype(str).str.strip(),
+    'Proxy': "Uk'37 SST",
+    'Latitude': df['Latitude'].astype(float), 'Longitude': df['Longitude'].astype(float),
+    'Anom': df[anom_col].astype(float),
+})
+recon['source_table'] = 'FoleyDowsett2019_cs_mp_sst_data_30k_plus_NOAA.csv'
+recon = recon.dropna(subset=['Latitude', 'Longitude', 'Anom'])
+
+print(recon.groupby('compilation').size())
+recon_out = os.path.join(OUT_DIR, f'recon_points_{EXPERIMENT}.csv')
+recon.to_csv(recon_out, index=False)
+print('wrote', recon_out)
+recon.head()"""
+
+
 PERIODS = [
+    dict(
+        experiment='midPliocene-eoi400',
+        long_name='mid-Pliocene warm period (~3.2 Ma, eoi400)',
+        compilations='Foley-Dowsett SST (Foley & Dowsett 2019; Haywood et al. 2020)',
+        step1_md=MIDPLIO_STEP1_MD,
+        step1_code=MIDPLIO_STEP1_CODE,
+    ),
+    dict(
+        experiment='lgm',
+        long_name='Last Glacial Maximum (21 ka)',
+        compilations='Cleator (Cleator et al. 2020) and Osman (LGMR; Osman et al. 2021)',
+        step1_md=LGM_STEP1_MD,
+        step1_code=LGM_STEP1_CODE,
+    ),
     dict(
         experiment='lig127k',
         long_name='Last Interglacial (127 ka)',
@@ -233,7 +328,11 @@ for m in models:
     md("""## Step 3 — Sample model anomalies at reconstruction locations
 
 Model longitudes run 0–360°, the proxy longitudes −180–180°, so targets are wrapped to
-0–360 and the field is made cyclic in longitude before bilinear interpolation.""")
+0–360 and the field is made cyclic in longitude before bilinear interpolation.
+
+Each recon point carries a `weight` used later in the RMSE. Scattered-site compilations
+weight every point equally (1.0); gridded near-global reconstructions (Cleator, Osman)
+set `weight = cos(latitude)` so the RMSE is area-fair rather than pole-heavy.""")
 
     co("""def sample_points(field, lats, lons):
     \"\"\"Bilinearly sample a (lat, lon) field at scattered points; lon made cyclic.\"\"\"
@@ -246,6 +345,8 @@ Model longitudes run 0–360°, the proxy longitudes −180–180°, so targets 
 sampled = recon[['compilation', 'reference', 'site', 'Proxy',
                  'Latitude', 'Longitude', 'Anom']].copy()
 sampled = sampled.rename(columns={'Anom': 'recon_anom'})
+# Optional per-point weight (defaults to equal weighting when Step 1 omits it).
+sampled['weight'] = recon['weight'].values if 'weight' in recon.columns else 1.0
 for m in models:
     sampled[m] = sample_points(anomalies[m], sampled['Latitude'].values, sampled['Longitude'].values)
 
@@ -258,17 +359,23 @@ sampled.head()""")
     md("""## Step 4 — RMSE of each model against each compilation
 
 For every model × compilation we take the model-minus-proxy difference across all proxy
-points in that compilation and report the RMSE (and the number of points contributing,
-since a point off the model grid edge can return NaN).""")
+points in that compilation and report the (weight-weighted) RMSE and bias, plus the number
+of points contributing (a point off the model grid edge can return NaN). With unit weights
+this is the ordinary RMSE; gridded compilations use `cos(latitude)` weights (Step 3).""")
 
     co("""records = []
 for m in models:
     for comp, grp in sampled.groupby('compilation'):
         diff = grp[m].values - grp['recon_anom'].values
-        valid = np.isfinite(diff)
+        w = grp['weight'].values
+        valid = np.isfinite(diff) & np.isfinite(w)
         n = int(valid.sum())
-        rmse = float(np.sqrt(np.mean(diff[valid] ** 2))) if n else np.nan
-        bias = float(np.mean(diff[valid])) if n else np.nan
+        if n:
+            dv, wv = diff[valid], w[valid]
+            rmse = float(np.sqrt(np.sum(wv * dv ** 2) / np.sum(wv)))
+            bias = float(np.sum(wv * dv) / np.sum(wv))
+        else:
+            rmse = bias = np.nan
         records.append({'model': m, 'compilation': comp, 'n_points': n,
                         'rmse': rmse, 'bias': bias})
 

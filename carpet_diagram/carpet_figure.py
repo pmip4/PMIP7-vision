@@ -20,15 +20,28 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as pe
-from matplotlib.colors import Normalize
+from matplotlib.colors import Normalize, LinearSegmentedColormap
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 OUT_DIR = os.path.join(SCRIPT_DIR, 'output')
 
+
+def better_worse_cmap():
+    """Diverging colormap for RMSE-relative-to-row-mean.
+
+    Below-mean (better than average) → warm YlOrRd (pale yellow → red); above-mean
+    (worse) → cool BuPu (pale → blue → purple); the mean sits at the pale centre.
+    """
+    n = 128
+    better = plt.get_cmap('YlOrRd')(np.linspace(1.0, 0.0, n))  # red → pale (best → mean)
+    worse = plt.get_cmap('BuPu')(np.linspace(0.0, 1.0, n))     # pale → purple (mean → worst)
+    return LinearSegmentedColormap.from_list('better_worse', np.vstack([better, worse]))
+
 # Preferred period ordering (oldest→youngest is not meaningful here; this is
 # just the row order). Any period found but not listed is appended after these.
 PERIOD_ORDER = ['midPliocene-eoi400', 'lgm', 'lig127k', 'midHolocene']
-COMPILATION_ORDER = ['Hoffman', 'Capron', 'Bartlein', 'Temp12k']
+COMPILATION_ORDER = ['Foley-Dowsett', 'Cleator', 'Osman',
+                     'Hoffman', 'Capron', 'Bartlein', 'Temp12k']
 
 # Cells backed by fewer than this many proxy points are flagged (small samples
 # give noisy RMSE — e.g. the Capron lig127k subset has only ~7 points).
@@ -62,28 +75,44 @@ def make_figure():
     df = load_rmse_tables()
 
     row_keys = order_rows(df)
-    # Columns: models sorted by mean RMSE across all rows (best on the left).
-    model_order = (df.groupby('model')['rmse'].mean().sort_values().index.tolist())
 
     rmse = df.pivot_table(index=['period', 'compilation'], columns='model', values='rmse')
     npts = df.pivot_table(index=['period', 'compilation'], columns='model', values='n_points')
-    rmse = rmse.reindex(index=row_keys, columns=model_order)
+    rmse = rmse.reindex(index=row_keys)
+
+    # Per-row normalisation relative to the row mean: each cell is the model's signed
+    # deviation from that (period, compilation) row's average RMSE, scaled by the row's
+    # largest absolute deviation so the most extreme model reaches ±1. Better-than-
+    # average (lower RMSE) is negative → warm (yellow/red); worse-than-average is
+    # positive → cool (blue/purple); the mean sits at the pale centre. This shows model
+    # ranking regardless of each row's absolute RMSE magnitude. Cells keep absolute °C.
+    def relative_to_mean(r):
+        dev = r - r.mean()
+        scale = np.nanmax(np.abs(dev))
+        return dev / scale if np.isfinite(scale) and scale > 0 else dev * 0.0
+
+    rel = rmse.apply(relative_to_mean, axis=1)
+    # Columns: models sorted by mean relative RMSE (best-on-average on the left).
+    model_order = rel.mean(axis=0).sort_values().index.tolist()
+    rmse = rmse.reindex(columns=model_order)
+    rel = rel.reindex(columns=model_order)
     npts = npts.reindex(index=row_keys, columns=model_order)
 
     M = rmse.values
+    Mn = rel.values
     nrows, ncols = M.shape
 
     fig_w = max(8.0, 0.55 * ncols + 3.0)
     fig_h = max(2.6, 0.6 * nrows + 1.8)
     fig, ax = plt.subplots(figsize=(fig_w, fig_h))
 
-    norm = Normalize(vmin=np.nanmin(M), vmax=np.nanmax(M))
-    cmap = plt.get_cmap('YlOrRd').copy()
+    norm = Normalize(vmin=-1.0, vmax=1.0)
+    cmap = better_worse_cmap()
     cmap.set_bad('#e8e8e8')
 
-    im = ax.imshow(M, aspect='auto', cmap=cmap, norm=norm)
+    im = ax.imshow(Mn, aspect='auto', cmap=cmap, norm=norm)
 
-    # Cell annotations: RMSE value, with a '*' where the sample is small.
+    # Cell annotations: absolute RMSE value, with a '*' where the sample is small.
     for i in range(nrows):
         for j in range(ncols):
             v = M[i, j]
@@ -91,9 +120,8 @@ def make_figure():
                 continue
             n = npts.values[i, j]
             txt = f'{v:.1f}' + ('*' if np.isfinite(n) and n < MIN_POINTS else '')
-            # White text on dark cells, black on light.
-            lum = 0.0 if np.isnan(v) else norm(v)
-            color = 'white' if lum > 0.6 else '#222222'
+            # White text on saturated (far-from-mean) cells, black near the pale centre.
+            color = 'white' if abs(Mn[i, j]) > 0.6 else '#222222'
             ax.text(j, i, txt, ha='center', va='center', fontsize=7.5, color=color)
 
     # Axes / ticks
@@ -107,15 +135,17 @@ def make_figure():
     ax.tick_params(which='minor', length=0)
     ax.tick_params(which='major', length=0)
 
-    cbar = fig.colorbar(im, ax=ax, fraction=0.025, pad=0.02)
-    cbar.set_label('RMSE of annual-mean temperature anomaly (°C)', fontsize=8.5)
+    cbar = fig.colorbar(im, ax=ax, fraction=0.025, pad=0.02, ticks=[-1, 0, 1])
+    cbar.set_label('RMSE vs row mean', fontsize=8.5)
+    cbar.ax.set_yticklabels(['better', 'mean', 'worse'])
     cbar.ax.tick_params(labelsize=8)
 
     ax.set_title('Model–reconstruction temperature mismatch (carpet diagram)',
                  fontsize=12, fontweight='bold', pad=10)
+    notes = ['cell numbers are absolute RMSE (°C); colour is each model vs its row-mean RMSE']
     if (npts.values[np.isfinite(npts.values)] < MIN_POINTS).any():
-        fig.text(0.01, 0.01, f'* fewer than {MIN_POINTS} proxy points — RMSE is noisy',
-                 fontsize=7.5, color='#555555', ha='left')
+        notes.append(f'* fewer than {MIN_POINTS} proxy points — RMSE is noisy')
+    fig.text(0.01, 0.01, '   '.join(notes), fontsize=7.5, color='#555555', ha='left')
 
     fig.tight_layout()
     out_path = os.path.join(OUT_DIR, 'carpet_diagram.png')
