@@ -18,17 +18,8 @@ _Rationale:_ This manuscript is intended as a position piece to motivate PMIP7. 
 
 * Include table providing a summary. Base on IPCC AR6 TS table, with # models in each (Chris)
 
-![Figure 1: Comparing regional climate change sginals across experiments, created using the synthesis code.](synthesis_figure\output\synthesis_hexfig.png)
-
-### Benchmarking
-
-* Provide a (brief) literature review of the benchmarking performed before: separate papers for periods; attempt to combine in IPCC
-
-* Pull together the existing results from the various single-period papers into a single carpet diagram (mainly temp, but also a few hydroclimate). Include a single line for the historical temp trend (from general obs paper: take from CVDP?)
-
-![Figure 1: Benchmarking models' surface air temperature across multi-periods, created using the carpet_diagram code.](carpet_diagram\output\carpet_diagram.png)
-
-* Talk about benchmarks and evaluation performed on other fields (e.g. ENSO in midH, salinity/density). Synthesise regional evaluations.
+![Figure 1: Comparing regional climate change sginals across experiments, created using the synthesis code.](synthesis_figure/output/synthesis_hexfig.png)
+[Figure 1: Comparing regional climate change sginals across experiments, created using the synthesis code.](synthesis_figure/output/synthesis_hexfig.png)
 
 ### Insights into past climates
 _I'm not so sure what wants to go in this section: ideas?_
@@ -36,9 +27,22 @@ _I'm not so sure what wants to go in this section: ideas?_
 * Some examples on the regional level?
 * Maybe discuss how the model simulations can support insights being drawn from data: [Wharton et al](https://www.nature.com/articles/s41586-024-07655-y) and [Gray et al](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2023PA004666) as examples?
 
-![Figure 3: Scatterplots relating climate indices and modes to global mean temperature change across time periods [update from Rehfeld et al 2020]](carpet_diagram\output\carpet_diagram.png)
+![Figure 2: Scatterplots relating climate indices and modes to global mean temperature change across time periods: after Rehfeld et al 2020, data still needs fixing](scatterplots/output/scatter_vs_gmt.png)
+
+[Figure 2: Scatterplots relating climate indices and modes to global mean temperature change across time periods: after Rehfeld et al 2020, data still needs fixing](scatterplots/output/scatter_vs_gmt.png)
 
 * Discuss role of data assimilation generated 'reconstructions'. Highlight possible circularity. Can I add in Osman and Erb for MH. Osman for LGM and Tierney for Pliocene? 
+
+### Benchmarking
+
+* Provide a (brief) literature review of the benchmarking performed before: separate papers for periods; attempt to combine in IPCC
+
+* Pull together the existing results from the various single-period papers into a single carpet diagram (mainly temp, but also a few hydroclimate). Include a single line for the historical temp trend (from general obs paper: take from CVDP?)
+
+![Figure 3: Benchmarking models' surface air temperature across multi-periods, created using the carpet_diagram code.](carpet_diagram/output/carpet_diagram.png)
+[Figure 3: Benchmarking models' surface air temperature across multi-periods, created using the carpet_diagram code.](carpet_diagram/output/carpet_diagram.png)
+
+* Talk about benchmarks and evaluation performed on other fields (e.g. ENSO in midH, salinity/density). Synthesise regional evaluations.
 
 ### Insights for future climate _(Gabrial Pontes)_
 
