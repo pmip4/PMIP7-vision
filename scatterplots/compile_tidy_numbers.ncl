@@ -102,73 +102,25 @@ do fi = 0, dimsizes(files)-1
   headers(9)="AMM AnnCycAmp"
   variables(9)=stat_ts_var(data_dir+files(fi),"atlantic_meridional_mode","AnnCycAmp",ts_opt)
 
-  ;South Asian Monsoon Area
-  headers(12)="SAMSmonsoon area mean"
-  variables(12)=stat_ts_var(data_dir+files(fi),"monsoon_area_SAMS","mean",ts_opt)
-
-  ;South Asian Monsoon Rainrate
-  headers(13)="SAMSmonsoon rain mean"
-  variables(13)=stat_ts_var(data_dir+files(fi),"monsoon_rain_SAMS","mean",ts_opt)
-
-  ;South Asian Monsoon Area
-  headers(14)="SAMSmonsoon area stddev"
-  variables(14)=stat_ts_var(data_dir+files(fi),"monsoon_area_SAMS","stddev",ts_opt)
-
-  ;South Asian Monsoon Rainrate
-  headers(15)="SAMSmonsoon rain stddev"
-  variables(15)=stat_ts_var(data_dir+files(fi),"monsoon_rain_SAMS","stddev",ts_opt)
-
-  ;NE Brazil annual rain
-  headers(16)="NEB rain ann"
-  variables(16)=stat_ts_var(data_dir+files(fi),"ipcc_NEB_pr","mean",ts_opt_abs)
-
-  ;NE Brazil summer rain
-  ts_opt_jja_abs=ts_opt_abs
-  ts_opt_jja_abs@SEASON="JJA"
-  headers(17)="NEB rain jja"
-  variables(17)=stat_ts_var(data_dir+files(fi),"ipcc_NEB_pr","mean",ts_opt_jja_abs)
-
-  ;NE Brazil winter rain
-  ts_opt_djf_abs=ts_opt_abs
-  ts_opt_djf_abs@SEASON="DJF"
-  headers(18)="NEB rain djf"
-  variables(18)=stat_ts_var(data_dir+files(fi),"ipcc_NEB_pr","mean",ts_opt_djf_abs)
-
-  ;NE Brazil summer rain stddev
-  ts_opt_jja=ts_opt
-  ts_opt_jja@SEASON="JJA"
-  headers(19)="NEB rain jja stddev"
-  variables(19)=stat_ts_var(data_dir+files(fi),"ipcc_NEB_pr","stddev",ts_opt_jja)
-
-  ;NE Brazil winter rain stddev
-  ts_opt_djf=ts_opt
-  ts_opt_djf@SEASON="DJF"
-  headers(20)="NEB rain djf stddev"
-  variables(20)=stat_ts_var(data_dir+files(fi),"ipcc_NEB_pr","stddev",ts_opt_djf)
-
-  ;compute correlations
-  ts_opt_smooth=ts_opt
-  ts_opt_smooth@SMOOTH=True
-  ts_opt_smooth@nave=5
-  nino34=read_ts(data_dir+files(fi),"nino34",ts_opt_smooth)
-  atl3=read_ts(data_dir+files(fi),"atlantic_nino",ts_opt_smooth) 
-  amo=read_ts(data_dir+files(fi),"amo_timeseries_lowpass_mon",ts_opt_smooth)
-
-  headers(21)="r(atl3.nino34)"
-  if (.not.all(ismissing(nino34))).and.(.not.all(ismissing(atl3))).and.(.not.(stddev(atl3).lt.0.001)) then
-    variables(21)=escorc(nino34,atl3)   
-  else
-    variables(21)=variables@_FillValue   
-  end if
-
-  headers(29)="r(atl3.amo)"
-  if (.not.all(ismissing(amo))).and.(.not.all(ismissing(atl3)).and.(.not.(stddev(amo).lt.0.001))) then
-    variables(29)=escorc(amo,atl3)   
-  else
-    variables(29)=variables@_FillValue   
-  end if  
-  delete([/nino34,atl3,amo/])
-
+  patterns=(/"tas_spatialmean_ann","pr_spatialmean_ann","nao_pattern_djf","pdo_pattern_mon"/)
+  patterns_regions=(/(/(/-90.,90./),(/0.,359./)/),\ ;tas_spatialmean_ann - global mean 
+                   (/(/-90.,90./),(/0.,359./)/),\ ;pr_spatialmean_ann - global mean
+                   (/(/20.,80./),(/-90.,40./)/),\ ;nao_pattern_djf - NAO summer land NH 
+                   (/(/20.,70./),(/110.,260./)/)/) ;pdo_pattern_djf - PDO
+  patterns_stat=(/"mean","mean","stddev","stddev"/)
+  patterns_human_names=(/"global_mean_absolute_temperatures","global_mean_precipitation","NAO DJF","PDO mon"/)
+ 
+  do patt_i=0,dimsizes(patterns)-1
+    f=addfile(data_dir+files(fi),"r")
+    headers(10+patt_i)=patterns_human_names(patt_i)
+    if isfilevar(f,patterns(patt_i)) then
+      variables(10+patt_i)=extract_latlon_areastat(data_dir+files(fi),patterns(patt_i),patterns_regions(patt_i,0,:),patterns_regions(patt_i,1,:),patterns_stat(patt_i))
+    else
+      variables(10+patt_i)=variables@_FillValue
+    end if
+    delete(f)
+  end do  
+ 
   ;write out to file
   exists=ind(.not.ismissing(headers))
   if fi.eq.0 then
@@ -178,5 +130,5 @@ do fi = 0, dimsizes(files)-1
   vlist=[/str_join(variables(exists),",")/]
   write_table(fname, "a", vlist, "%s")
 
-  delete([/headers,variables,ts_opt,ts_opt_abs,ts_opt_jja,ts_opt_djf,ts_opt_jja_abs,ts_opt_djf_abs,ts_opt_smooth/])
+  delete([/headers,variables,ts_opt,ts_opt_abs/])
 end do
