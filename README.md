@@ -28,7 +28,6 @@ _I'm not so sure what wants to go in this section: ideas?_
 * Maybe discuss how the model simulations can support insights being drawn from data: [Wharton et al](https://www.nature.com/articles/s41586-024-07655-y) and [Gray et al](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2023PA004666) as examples?
 
 ![Figure 2: Scatterplots relating climate indices and modes to global mean temperature change across time periods: after Rehfeld et al 2020, data still needs fixing](scatterplots/output/scatter_vs_gmt.png)
-
 [Figure 2: Scatterplots relating climate indices and modes to global mean temperature change across time periods: after Rehfeld et al 2020, data still needs fixing](scatterplots/output/scatter_vs_gmt.png)
 
 * Discuss role of data assimilation generated 'reconstructions'. Highlight possible circularity. Can I add in Osman and Erb for MH. Osman for LGM and Tierney for Pliocene? 
@@ -51,6 +50,9 @@ _I'm not so sure what wants to go in this section: ideas?_
 * Paragraph looking at paleo-constraints. Discuss Lunt et al (2024) constraining ECS directly using PMIP outputs. Jiang Zhu's palaeo-calibrated CESM2 and Peter Hopcroft's work
 * Paragraph pushing into work explaining the physical mechanisms: e.g. Yoshimori et al; He at al
 * Any quantitative examples (maybe Osman et al 2026) 
+
+![Figure 4: Schematic showing examples of how to leverage insight from paleoclimate models into future projections](past2future-examples.png)
+[Figure 4: Schematic showing examples of how to leverage insight from paleoclimate models into future projections](past2future-examples.png)
 
 ### Outlook for PMIP7
 
