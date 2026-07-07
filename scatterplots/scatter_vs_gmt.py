@@ -36,11 +36,12 @@ FILL_THRESH = 1e15
 # to avoid double-counting; abrupt4xCO2 rows are all fill values so they drop
 # out on their own.
 EXP_STYLE = {
-    'midPliocene-eoi400': ('#b2182b', 'mid-Pliocene (eoi400)'),
+    'midPliocene-eoi400': ('#b2182b', 'mid-Pliocene'),
     'lgm':                ('#2166ac', 'LGM'),
     'lig127k':            ('#ef8a62', 'LIG (127k)'),
     'midHolocene':        ('#1a9850', 'mid-Holocene'),
-    '1pctCO2':            ('#762a83', '1pctCO2 (last 30 yr)'),
+    '1pctCO2':            ('#762a83', '1% CO2'),
+    'abrupt4xCO2':        ('#a40e4C', 'Abrupt 4x CO2')
 }
 
 # Panels: (column, title, y-axis label, mode). mode 'pct' -> percentage change,
@@ -48,10 +49,10 @@ EXP_STYLE = {
 PANELS = [
     ('global_mean_precipitation', 'Global-mean precipitation', 'change (%)', 'pct'),
     ('Nino34 stddev',             'ENSO (Nino3.4 s.d.)',        r'$\Delta$ s.d. ($\degree$C)', 'diff'),
-    ('ATL3 stddev',               'Atlantic Nino (ATL3 s.d.)',  r'$\Delta$ s.d. ($\degree$C)', 'diff'),
+    ('AtlNino stddev',               'Atlantic Nino (ATL3 s.d.)',  r'$\Delta$ s.d. ($\degree$C)', 'diff'),
     ('NAO DJF',                   'NAO (DJF)',                  r'$\Delta$ s.d. (hPa)',        'diff'),
-    ('PDO mon',                   'PDO',                        r'$\Delta$ s.d.',              'diff'),
-    ('AMM AnnCycAmp',             'AMM (ann. cycle amp.)',      r'$\Delta$ ($\degree$C)',      'diff'),
+    ('IOD stddev',                'Indian Ocean Dipole (DMI)',  r'$\Delta$ s.d. ($\degree$C)', 'diff'),
+    ('AMM AnnCycAmp',             'Atlantic Meridional Mode ',  r'$\Delta$ ($\degree$C)',      'diff'),
 ]
 
 PRECIP_COL = 'global_mean_precipitation'

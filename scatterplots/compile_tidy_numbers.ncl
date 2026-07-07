@@ -11,7 +11,7 @@
 load "cvdp_data.functions.ncl"
 
 data_dir="cvdp_output_by_experiment/"
-files=systemfunc("ls "+data_dir+"*/*.nc")
+files=systemfunc("ls "+data_dir+"{1pctCO2,abrupt4xCO2,lig127k,lgm,midHolocene,midPliocene-eoi400,piControl}/*.nc")
 files = str_sub_str(files, data_dir, "")
 ;files=(/"INM-CM4-8_historical.cvdp_data.1850-2014.nc"/) ;select a single file for testing...
 
@@ -48,7 +48,7 @@ do fi = 0, dimsizes(files)-1
   ts_opt@NO_EXIT_ON_ERROR=True
   if any(variables(1).eq.(/"1pctCO2","abrupt4xCO2","rcp26","rcp85"/)) then
     ts_opt@subset=True
-    ts_opt@subset_syear=-30
+    ts_opt@subset_syear=-29
     ts_opt@subset_eyear=0
     ts_opt@DETREND=True
   end if
@@ -71,8 +71,8 @@ do fi = 0, dimsizes(files)-1
   variables(4)=stat_ts_var(data_dir+files(fi),"atl3_timeseries_mon","mean",ts_opt_abs)
 
   ;IOD Amplitude
-  headers(5)="ATL3 stddev"
-  variables(5)=stat_ts_var(data_dir+files(fi),"atl3_timeseries_mon","stddev",ts_opt)
+  headers(5)="IOD stddev"
+  variables(5)=stat_ts_var(data_dir+files(fi),"indian_ocean_dipole","stddev",ts_opt)
 
   ;Nino3.4 Amplitude
   headers(6)="Nino34 stddev"
