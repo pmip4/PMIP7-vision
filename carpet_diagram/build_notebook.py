@@ -65,7 +65,8 @@ recon.head()"""
 
 MIDHOL_STEP1_MD = """## Step 1 — Reconstruction compilations
 
-Two midHolocene (6 ka) compilations, each in its own CSV with a plain header row:
+Three midHolocene (6 ka) compilations. The first two are scattered proxy sites, each in
+its own CSV with a plain header row and unit weight per point:
 
 - **Bartlein** — the Bartlein et al. (2011) pollen-based mean-annual-temperature (MAT)
   anomalies; the annual anomaly is the `mat_anm_mean` column.
@@ -74,7 +75,18 @@ Two midHolocene (6 ka) compilations, each in its own CSV with a plain header row
 
 Both store latitude/longitude as plain `lat`/`lon` columns (longitudes −180–180°). We
 normalise them to the shared `compilation, reference, site, Proxy, Latitude, Longitude,
-Anom` schema used by the rest of the pipeline."""
+Anom` schema used by the rest of the pipeline.
+
+The third is a gridded data assimilation product, flattened to points with a
+`cos(latitude)` weight so its near-global RMSE is area-fair:
+
+- **Erb** — the Holocene Reconstruction of Erb et al. (2022). Note the published
+  `recon_tas_mean` field is referenced to **3–5 ka** ("The reference period of each
+  reconstruction is 3-5 ka"), *not* to the pre-industrial, so it is not directly
+  comparable with a model `midHolocene − piControl` anomaly. We therefore use
+  `Erbetal2022_6ka_minus_0-1ka_anom.nc`, the 5.5–6.5 ka mean minus the 0–1 ka mean; the
+  shared 3–5 ka baseline cancels in the difference, leaving a 6 ka − (0–1 ka) anomaly on
+  the same footing as Osman's LGM field."""
 
 MIDHOL_STEP1_CODE = """# (compilation, filename, anomaly column, reference label, proxy label)
 recon_specs = [
@@ -96,7 +108,24 @@ for comp, fname, anom_col, ref, proxy in recon_specs:
         'Anom': df[anom_col].astype(float),
     })
     sub['source_table'] = fname
+    sub['weight'] = 1.0          # scattered sites: equal weight
     frames.append(sub)
+
+# --- Erb: flatten the gridded 6 ka - (0-1 ka) reconstruction to points ---
+ERB_FILE = 'Erbetal2022_6ka_minus_0-1ka_anom.nc'
+ds = xr.open_dataset(os.path.join(RECON_DIR, ERB_FILE), decode_times=False)
+tas = ds['recon_tas_mean'].where(np.abs(ds['recon_tas_mean']) < 1e30)
+lon2d, lat2d = np.meshgrid(tas['lon'].values, tas['lat'].values)
+erb = pd.DataFrame({
+    'compilation': 'Erb', 'reference': 'Erb et al. 2022', 'site': np.nan,
+    'Proxy': 'Holocene Recon. SAT (assim.)',
+    'Latitude': lat2d.ravel().astype(float), 'Longitude': lon2d.ravel().astype(float),
+    'Anom': tas.values.ravel().astype(float),
+})
+erb['source_table'] = ERB_FILE
+# Regular lat/lon grid: cos-latitude weight makes the RMSE area-fair.
+erb['weight'] = np.cos(np.deg2rad(erb['Latitude']))
+frames.append(erb)
 
 recon = pd.concat(frames, ignore_index=True)
 recon = recon.dropna(subset=['Latitude', 'Longitude', 'Anom'])
@@ -110,17 +139,39 @@ recon.head()"""
 
 LGM_STEP1_MD = """## Step 1 — Reconstruction compilations
 
-Two LGM (21 ka) compilations, both near-global gridded anomaly products (so each point
-gets a `cos(latitude)` weight for an area-fair RMSE):
+Three LGM (21 ka) compilations. One is the underlying proxy synthesis, with unit weights:
 
-- **Cleator** — the Cleator et al. (2020) vegetation-model-inversion data assimilation.
-  A long metadata preamble precedes a `#`-prefixed header row (line 77); the only relevant
-  field is `MAT` (mean-annual-temperature anomaly, °C) at each land grid cell.
+- **Bartlein** — the Bartlein et al. (2011) pollen-based mean-annual-temperature synthesis
+  at 21 ka (`Bartlein_mat_21ka.csv`, the NOAA `mat_delta_21ka_ALL_grid_2x2.csv`), the 21 ka
+  counterpart of the file used for the midHolocene row. 98 cells with an anomaly, in the
+  `mat_anm_mean` column. Note this is the proxy compilation that Cleator assimilated, so
+  the Cleator row below is not independent of it.
+
+The other two are near-global gridded products, so each point gets a `cos(latitude)`
+weight for an area-fair RMSE:
+
+- **Cleator** — the Cleator et al. (2020) vegetation-model-inversion **data assimilation**
+  product (its own metadata: "made by combining pollen based reconstructions (from Bartlein
+  et al. 2011) and averaged outputs of LGM simulations from … PMIP … under a variational
+  data assimilation technique"). A long metadata preamble precedes a `#`-prefixed header row
+  (line 77); the only relevant field is `MAT` (mean-annual-temperature anomaly, °C).
 - **Osman** — the Last Glacial Maximum Reanalysis (Osman et al. 2021), the ensemble-mean
   `sat` field from `Osman_LGMR_21ka_SAT_anom_climo.nc`, already differenced to a 21 ka −
   (0–1 ka) anomaly. The 96×144 grid is flattened to points, dropping fill values."""
 
-LGM_STEP1_CODE = """# --- Cleator: gridded land MAT anomalies from a CSV with a preamble ---
+LGM_STEP1_CODE = """# --- Bartlein: the 21 ka pollen MAT synthesis (scattered 2x2 cells) ---
+bar = pd.read_csv(os.path.join(RECON_DIR, 'Bartlein_mat_21ka.csv'))
+bar.columns = [c.strip() for c in bar.columns]   # headers carry leading spaces
+bartlein = pd.DataFrame({
+    'compilation': 'Bartlein', 'reference': 'Bartlein et al. 2011', 'site': np.nan,
+    'Proxy': 'pollen MAT',
+    'Latitude': bar['lat'].astype(float), 'Longitude': bar['lon'].astype(float),
+    'Anom': bar['mat_anm_mean'].astype(float),
+})
+bartlein['source_table'] = 'Bartlein_mat_21ka.csv'
+bartlein['weight'] = 1.0                  # scattered sites: equal weight
+
+# --- Cleator: gridded land MAT anomalies from a CSV with a preamble ---
 CLE_COLS = ['lat', 'lon', 'MI', 'MAP', 'MAT', 'MTCO', 'MTWA', 'GDD5',
             'MI_SD', 'MAP_SD', 'MAT_SD', 'MTCO_SD', 'MTWA_SD', 'GDD5_SD']
 cle = pd.read_csv(os.path.join(RECON_DIR, 'cleator2020_recon.csv'),
@@ -147,10 +198,12 @@ osman = pd.DataFrame({
 })
 osman['source_table'] = 'Osman_LGMR_21ka_SAT_anom_climo.nc'
 
-recon = pd.concat([cleator, osman], ignore_index=True)
+for gridded in (cleator, osman):
+    # Regular lat/lon grids: cos-latitude weight makes the RMSE area-fair.
+    gridded['weight'] = np.cos(np.deg2rad(gridded['Latitude']))
+
+recon = pd.concat([bartlein, cleator, osman], ignore_index=True)
 recon = recon.dropna(subset=['Latitude', 'Longitude', 'Anom'])
-# Both are regular lat/lon grids: cos-latitude weight makes the RMSE area-fair.
-recon['weight'] = np.cos(np.deg2rad(recon['Latitude']))
 
 print(recon.groupby('compilation').size())
 recon_out = os.path.join(OUT_DIR, f'recon_points_{EXPERIMENT}.csv')
@@ -159,27 +212,52 @@ print('wrote', recon_out)
 recon.head()"""
 
 
-MIDPLIO_STEP1_MD = """## Step 1 — Reconstruction compilation
+MIDPLIO_STEP1_MD = """## Step 1 — Reconstruction compilations
 
-One midPliocene (mid-Piacenzian, ~3.2 Ma; eoi400 boundary conditions) compilation:
+Two midPliocene (mid-Piacenzian, ~3.2 Ma; eoi400 boundary conditions) compilations:
 
 - **Foley-Dowsett** — the Foley & Dowsett (2019) alkenone (Uk'37) sea-surface-temperature
   sites, as used by Haywood et al. (2020). The file carries two anomaly columns; following
   Haywood et al. we use the **NOAA ERSST5** anomaly (SST minus the NOAA ERSST5 modern
-  climatology), which is the last, unnamed column (`Unnamed: 14`)."""
+  climatology), which is the last, unnamed column (`Unnamed: 14`). Scattered sites, so
+  every point gets unit weight.
+- **Tierney** — PlioDA (Tierney et al. 2024), a data assimilation product. The
+  `..._changes.nc` file is the 3.25 Ma minus 0 Ma (modern) `tas_annual` difference, i.e.
+  already the right anomaly to compare against `midPliocene-eoi400 − piControl`. The
+  180×360 grid is flattened to points (the 3 southernmost and 3 northernmost latitude
+  rows are all fill and drop out), and each point gets a `cos(latitude)` weight so the
+  near-global RMSE is area-fair rather than pole-heavy."""
 
 MIDPLIO_STEP1_CODE = """df = pd.read_csv(os.path.join(RECON_DIR,
                  'FoleyDowsett2019_cs_mp_sst_data_30k_plus_NOAA.csv'))
 # The trailing unnamed column is SST minus the NOAA ERSST5 modern climatology.
 anom_col = 'Unnamed: 14'
-recon = pd.DataFrame({
+foley = pd.DataFrame({
     'compilation': 'Foley-Dowsett', 'reference': 'Foley & Dowsett 2019',
     'site': df['Location or site'].astype(str).str.strip(),
     'Proxy': "Uk'37 SST",
     'Latitude': df['Latitude'].astype(float), 'Longitude': df['Longitude'].astype(float),
     'Anom': df[anom_col].astype(float),
 })
-recon['source_table'] = 'FoleyDowsett2019_cs_mp_sst_data_30k_plus_NOAA.csv'
+foley['source_table'] = 'FoleyDowsett2019_cs_mp_sst_data_30k_plus_NOAA.csv'
+foley['weight'] = 1.0                     # scattered sites: equal weight
+
+# --- Tierney / PlioDA: flatten the gridded 3.25 Ma - modern tas anomaly to points ---
+PLIODA_FILE = 'plioDAMainResults.tas_annual_latePlio_changes.nc'
+ds = xr.open_dataset(os.path.join(RECON_DIR, PLIODA_FILE), decode_times=False)
+tas = ds['tas_annual'].where(np.abs(ds['tas_annual']) < 1e30)
+lon2d, lat2d = np.meshgrid(tas['lon'].values, tas['lat'].values)
+tierney = pd.DataFrame({
+    'compilation': 'Tierney', 'reference': 'Tierney et al. 2024 (PlioDA)', 'site': np.nan,
+    'Proxy': 'PlioDA SAT (assim.)',
+    'Latitude': lat2d.ravel().astype(float), 'Longitude': lon2d.ravel().astype(float),
+    'Anom': tas.values.ravel().astype(float),
+})
+tierney['source_table'] = PLIODA_FILE
+# Regular lat/lon grid: cos-latitude weight makes the RMSE area-fair.
+tierney['weight'] = np.cos(np.deg2rad(tierney['Latitude']))
+
+recon = pd.concat([foley, tierney], ignore_index=True)
 recon = recon.dropna(subset=['Latitude', 'Longitude', 'Anom'])
 
 print(recon.groupby('compilation').size())
@@ -193,14 +271,14 @@ PERIODS = [
     dict(
         experiment='midPliocene-eoi400',
         long_name='mid-Pliocene warm period (~3.2 Ma, eoi400)',
-        compilations='Foley-Dowsett SST (Foley & Dowsett 2019; Haywood et al. 2020)',
+        compilations='Foley-Dowsett SST (Foley & Dowsett 2019; Haywood et al. 2020) and\n                      Tierney (PlioDA; Tierney et al. 2024)',
         step1_md=MIDPLIO_STEP1_MD,
         step1_code=MIDPLIO_STEP1_CODE,
     ),
     dict(
         experiment='lgm',
         long_name='Last Glacial Maximum (21 ka)',
-        compilations='Cleator (Cleator et al. 2020) and Osman (LGMR; Osman et al. 2021)',
+        compilations='Bartlein 21 ka (Bartlein et al. 2011), Cleator (Cleator et al. 2020)\n                      and Osman (LGMR; Osman et al. 2021)',
         step1_md=LGM_STEP1_MD,
         step1_code=LGM_STEP1_CODE,
     ),
@@ -214,7 +292,7 @@ PERIODS = [
     dict(
         experiment='midHolocene',
         long_name='mid-Holocene (6 ka)',
-        compilations='Bartlein (Bartlein et al. 2011) and Temp12k (Kaufman et al. 2020)',
+        compilations='Bartlein (Bartlein et al. 2011), Temp12k (Kaufman et al. 2020) and\n                      Erb (Holocene Reconstruction; Erb et al. 2022)',
         step1_md=MIDHOL_STEP1_MD,
         step1_code=MIDHOL_STEP1_CODE,
     ),
@@ -337,8 +415,9 @@ Model longitudes run 0–360°, the proxy longitudes −180–180°, so targets 
 0–360 and the field is made cyclic in longitude before bilinear interpolation.
 
 Each recon point carries a `weight` used later in the RMSE. Scattered-site compilations
-weight every point equally (1.0); gridded near-global reconstructions (Cleator, Osman)
-set `weight = cos(latitude)` so the RMSE is area-fair rather than pole-heavy.""")
+weight every point equally (1.0); gridded near-global reconstructions (Cleator, Osman,
+Erb, Tierney) set `weight = cos(latitude)` so the RMSE is area-fair rather than
+pole-heavy.""")
 
     co("""def sample_points(field, lats, lons):
     \"\"\"Bilinearly sample a (lat, lon) field at scattered points; lon made cyclic.\"\"\"

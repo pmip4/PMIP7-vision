@@ -6,9 +6,27 @@ midHolocene
 * temp12k_anom6k_mat.csv relates to the extracted data from the temp12k database that is described in Brierley et al (2020). It can be
 found at https://github.com/chrisbrierley/PMIP4-midHolocene/blob/master/recons/anom6k/anom6k_annual_grid_ave.csv
 * The paleodata assimilation product by Erb et al (2022). It was downloaded from https://zenodo.org/records/6426332/files/holocene_reconstruction.nc and averaged between 5.5-6.5ka.
+  IMPORTANT: the published recon_tas_mean field is referenced to 3-5ka, not to the preindustrial - the paper states "The reference period of each reconstruction is 3-5 ka"
+  (Fig 13 caption), and Erb et al themselves re-reference when quoting a mid-Holocene number ("0.09 degC relative to the past millennium"). So Erbetal2022_6ka_reconstruction.nc
+  is NOT comparable with a model midHolocene-piControl anomaly; taken at face value it would make every model look far too warm. Erbetal2022_6ka_minus_0-1ka_anom.nc is what
+  the carpet diagram actually uses: the 5.5-6.5ka mean minus the 0-1ka mean, so the shared 3-5ka baseline cancels and what is left is a 6ka-(0-1ka) anomaly, on the same
+  footing as the Osman LGM field. It was made with:
+      ncks -v recon_tas_mean holocene_reconstruction.nc Erbetl2022_holocene_reconstruction.nc
+      ncwa -a ages -d ages,5500.,6500. Erbetl2022_holocene_reconstruction.nc Erbetal2022_6ka_reconstruction.nc
+      ncwa -a ages -d ages,0.,1000.   Erbetl2022_holocene_reconstruction.nc Erbetal2022_0-1ka_reconstruction.nc
+      ncdiff Erbetal2022_6ka_reconstruction.nc Erbetal2022_0-1ka_reconstruction.nc Erbetal2022_6ka_minus_0-1ka_anom.nc
+  It is a gridded 64x96 field, so it is flattened to points and given cos(latitude) weights for an area-fair RMSE.
 
 Last Glacial Maximum
-* The Cleator et al (2020) reconstructionis actually a data assimilation product. It weas downloaded from https://researchdata.reading.ac.uk/244/1/LGM_reconstruction.csv adn only the MAT column is relevant
+* Bartlein_mat_21ka.csv is the 21ka half of the Bartlein et al (2011) pollen synthesis - the same product as the midHolocene Bartlein file, just the other time slice. Downloaded
+  from https://www.ncei.noaa.gov/pub/data/paleo/pollen/recons/bartlein2010/mat_delta_21ka_ALL_grid_2x2.csv (checked: the 06ka file from the same directory is identical to
+  Bartlein_mat.csv on all 635 shared cells, so it is the same source). 98 cells, anomaly column mat_anm_mean, scattered so unit weights. Note the two Alaskan cells at 67N give
+  +13.4 and +8.1 degC, the known anomalously-warm Beringian pollen reconstructions - they are kept, not screened.
+* The Cleator et al (2020) reconstruction is a data assimilation product, NOT a proxy compilation - checked, and its own preamble says so: "made by combining pollen based
+  reconstructions (from Bartlein et al. 2011) and averaged outputs of LGM simulations from ... PMIP ... under a variational data assimilation technique". The Reading record
+  holds only LGM_reconstruction.csv and a README, with no proxy-only file, and the data sit on a regular 2x2 grid rather than at sites. So its proxy input is the Bartlein 21ka
+  file above, which means the two rows are not independent. It was downloaded from https://researchdata.reading.ac.uk/244/1/LGM_reconstruction.csv and only the MAT column is
+  relevant. In the carpet diagram it sits below the double rule with the other DA products.
 * The Osman file is the last Glacial Maximum Reanalysis from Osman et al (2020). It is averaged between the 20900 and 21100 bins. Downloaded from https://www.ncei.noaa.gov/pub/data/paleo/reconstructions/osman2021/LGMR_SAT_climo.nc
 
 last interglacial (lig127k)
@@ -16,4 +34,12 @@ last interglacial (lig127k)
 
 midPliocene-eoi400
 * The data from the Foley & Dowestt (2019). It was published in Haywood et al (2020), who used the NOAA ERSST anomalies. Downloaded from https://cp.copernicus.org/articles/16/2095/2020/cp-16-2095-2020-supplement.zip
+* PlioDA, the data assimilation product of Tierney et al (2024, AGU Advances, doi:10.1029/2024AV001356), in plioDAMainResults.nc. Its time axis is in Ma and holds three
+  slices: 0 (modern), 3.25 and 4.75. The 3.25Ma slice is the mid-Piacenzian, which is what midPliocene-eoi400 targets, so the anomaly is the 3.25Ma slice minus the modern
+  one. Unlike the Erb file this needs no re-referencing, because both slices come from the same product. Made with:
+      ncwa -O -v tas_annual -d time,1 -a time plioDAMainResults.nc plioDAMainResults.tas_annual_latePlio.nc
+      ncwa -O -v tas_annual -d time,0 -a time plioDAMainResults.nc plioDAMainResults.tas_annual_modern.nc
+      ncdiff plioDAMainResults.tas_annual_latePlio.nc plioDAMainResults.tas_annual_modern.nc plioDAMainResults.tas_annual_latePlio_changes.nc
+  The carpet diagram reads the _changes file. It is a gridded 180x360 field (the 3 southernmost and 3 northernmost latitude rows are all fill and get dropped, leaving
+  62640 points), flattened to points with cos(latitude) weights. Global mean warming is +5.3 degC.
 

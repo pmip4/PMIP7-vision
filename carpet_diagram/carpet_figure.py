@@ -37,11 +37,24 @@ def better_worse_cmap():
     worse = plt.get_cmap('BuPu')(np.linspace(0.0, 1.0, n))     # pale → purple (mean → worst)
     return LinearSegmentedColormap.from_list('better_worse', np.vstack([better, worse]))
 
-# Preferred period ordering (oldest→youngest is not meaningful here; this is
-# just the row order). Any period found but not listed is appended after these.
-PERIOD_ORDER = ['midPliocene-eoi400', 'lgm', 'lig127k', 'midHolocene']
-COMPILATION_ORDER = ['Foley-Dowsett', 'Cleator', 'Osman',
-                     'Hoffman', 'Capron', 'Bartlein', 'Temp12k']
+# Explicit row order, in two groups separated by a double rule in the figure:
+# the proxy compilations first, then the gridded data assimilation products.
+# Any (period, compilation) present in the data but not listed here is appended
+# as a further group rather than silently dropped.
+ROW_GROUPS = [
+    [('midHolocene', 'Bartlein'),
+     ('midHolocene', 'Temp12k'),
+     ('lgm', 'Bartlein'),
+     ('lig127k', 'Hoffman'),
+     ('lig127k', 'Capron'),
+     ('midPliocene-eoi400', 'Foley-Dowsett')],
+    # Cleator is a data assimilation product too (it assimilates the Bartlein
+    # 21 ka pollen synthesis above into PMIP3 output), so it belongs here.
+    [('midHolocene', 'Erb'),
+     ('lgm', 'Cleator'),
+     ('lgm', 'Osman'),
+     ('midPliocene-eoi400', 'Tierney')],
+]
 
 # Cells backed by fewer than this many proxy points are flagged (small samples
 # give noisy RMSE — e.g. the Capron lig127k subset has only ~7 points).
@@ -62,19 +75,30 @@ def load_rmse_tables():
 
 
 def order_rows(df):
-    """Return ordered list of (period, compilation) row keys present in df."""
-    periods = ([p for p in PERIOD_ORDER if p in set(df['period'])]
-               + sorted(set(df['period']) - set(PERIOD_ORDER)))
-    comps = ([c for c in COMPILATION_ORDER if c in set(df['compilation'])]
-             + sorted(set(df['compilation']) - set(COMPILATION_ORDER)))
-    return [(p, c) for p in periods for c in comps
-            if not df[(df.period == p) & (df.compilation == c)].empty]
+    """Return (row_keys, boundaries) for the (period, compilation) rows in df.
+
+    `row_keys` is the flat ordered row list; `boundaries` holds the row indices
+    after which a group ends (used to draw the double rule between groups).
+    """
+    present = set(map(tuple, df[['period', 'compilation']].drop_duplicates().values))
+    groups = [[k for k in g if k in present] for g in ROW_GROUPS]
+
+    listed = {k for g in ROW_GROUPS for k in g}
+    extra = sorted(present - listed)
+    if extra:
+        print('note: rows not in ROW_GROUPS, appended at the end:', extra)
+        groups.append(extra)
+
+    groups = [g for g in groups if g]
+    row_keys = [k for g in groups for k in g]
+    boundaries = np.cumsum([len(g) for g in groups])[:-1].tolist()
+    return row_keys, boundaries
 
 
 def make_figure():
     df = load_rmse_tables()
 
-    row_keys = order_rows(df)
+    row_keys, boundaries = order_rows(df)
 
     rmse = df.pivot_table(index=['period', 'compilation'], columns='model', values='rmse')
     npts = df.pivot_table(index=['period', 'compilation'], columns='model', values='n_points')
@@ -134,6 +158,12 @@ def make_figure():
     ax.grid(which='minor', color='white', linewidth=1.5)
     ax.tick_params(which='minor', length=0)
     ax.tick_params(which='major', length=0)
+
+    # Double rule between row groups (proxy compilations above, data
+    # assimilation products below).
+    for b in boundaries:
+        for dy in (-0.085, 0.085):
+            ax.axhline(b - 0.5 + dy, color='#222222', linewidth=1.2, zorder=5)
 
     cbar = fig.colorbar(im, ax=ax, fraction=0.025, pad=0.02, ticks=[-1, 0, 1])
     cbar.set_label('RMSE vs row mean', fontsize=8.5)
