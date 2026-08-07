@@ -271,19 +271,25 @@ print('output :', OUT_DIR)""")
 
 Each model writes its CVDP field on its own native grid, so anomalies are computed
 per model. We pair every `{exp}` file with the same model's `piControl` file
-(ignoring the auxiliary `.monsoon.` / `.tas.indices.` files). If the two grids ever
-differ, the control is bilinearly regridded onto the {exp} grid before differencing.""")
+(the main file is the one named `<model>_<experiment>.cvdp_data.<years>.nc`; auxiliary
+per-variable files such as `.siconc.` / `.zos.` / `.monsoon.` / `.tas.indices.` carry a
+extra token before the years and are skipped). If the two grids ever differ, the control
+is bilinearly regridded onto the {exp} grid before differencing.""")
 
     co("""def model_files(experiment):
-    \"\"\"Map model name -> path for the main CVDP file of an experiment.\"\"\"
+    \"\"\"Map model name -> path for the main CVDP file of an experiment.
+
+    Only `<model>_<experiment>.cvdp_data.<start>-<end>.nc` is the main file; the
+    auxiliary per-variable outputs (`.siconc.`, `.zos.`, `.monsoon.`, `.tas.indices.`)
+    put an extra token before the year range and hold no `tas_spatialmean_ann`.
+    \"\"\"
     out = {}
     pat = os.path.join(CVDP_DIR, experiment, f'*_{experiment}.cvdp_data.*.nc')
+    main = re.compile(rf'^(?P<model>.+)_{re.escape(experiment)}\\.cvdp_data\\.\\d+-\\d+\\.nc$')
     for f in sorted(glob.glob(pat)):
-        b = os.path.basename(f)
-        if '.monsoon.' in b or '.tas.indices.' in b or b.endswith('.tmp'):
-            continue
-        model = b.split(f'_{experiment}.cvdp_data')[0]
-        out[model] = f  # last (sorted) wins; there is one main file per model
+        m = main.match(os.path.basename(f))
+        if m:
+            out[m.group('model')] = f
     return out
 
 def has_var(path):

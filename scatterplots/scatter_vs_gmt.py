@@ -2,9 +2,10 @@
 Scatter plots of climate-mode / precipitation responses against global-mean
 temperature change, one point per simulation.
 
-Reads `tidy_numbers_per_simulations.csv` (produced by compile_tidy_numbers.ncl,
-one row per model_experiment CVDP file). Every quantity is converted to an
-anomaly from that same model's piControl:
+Reads `tidy_numbers_cvdp6.1.csv` (produced by compile_tidy_numbers.ncl, one row
+per model_experiment CVDP file; the `cvdp5.2` file alongside it is the previous
+CVDP release, kept for comparison). Every quantity is converted to an anomaly
+from that same model's piControl:
 
   - global-mean precipitation  -> percentage change, (exp-pi)/pi*100
   - all variability modes       -> plain difference,  exp-pi
@@ -24,24 +25,27 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-CSV = os.path.join(SCRIPT_DIR, 'tidy_numbers_per_simulations.csv')
+CSV = os.path.join(SCRIPT_DIR, 'tidy_numbers_cvdp6.1.csv')
 OUT_DIR = os.path.join(SCRIPT_DIR, 'output')
 
 # NCL writes missing data as one of these fill sentinels; anything this large
 # is not a physical value.
 FILL_THRESH = 1e15
 
-# Experiments to plot (paleo periods + the 1pctCO2 future case), each paired
+# Experiments to plot (paleo periods + the idealised CO2 cases), each paired
 # with its model's piControl. The `-cal-adj` variants are deliberately excluded
-# to avoid double-counting; abrupt4xCO2 rows are all fill values so they drop
-# out on their own.
+# to avoid double-counting.
+#
+# (colour, label, filled). The paleo periods are drawn as filled dots; the
+# idealised future runs (1pctCO2, abrupt4xCO2) as open circles, so the two
+# families of experiment are distinguishable independently of colour.
 EXP_STYLE = {
-    'midPliocene-eoi400': ('#b2182b', 'mid-Pliocene'),
-    'lgm':                ('#2166ac', 'LGM'),
-    'lig127k':            ('#ef8a62', 'LIG (127k)'),
-    'midHolocene':        ('#1a9850', 'mid-Holocene'),
-    '1pctCO2':            ('#762a83', '1% CO2'),
-    'abrupt4xCO2':        ('#a40e4C', 'Abrupt 4x CO2')
+    'midPliocene-eoi400': ('#b2182b', 'mid-Pliocene',  True),
+    'lgm':                ('#2166ac', 'LGM',           True),
+    'lig127k':            ('#ef8a62', 'LIG (127k)',    True),
+    'midHolocene':        ('#1a9850', 'mid-Holocene',  True),
+    '1pctCO2':            ('#762a83', '1% CO2',        False),
+    'abrupt4xCO2':        ('#a40e4C', 'Abrupt 4x CO2', False),
 }
 
 # Panels: (column, title, y-axis label, mode). mode 'pct' -> percentage change,
@@ -108,10 +112,14 @@ def make_figure():
         ax.axhline(0, color='#bbbbbb', lw=0.8, zorder=0)
         ax.axvline(0, color='#bbbbbb', lw=0.8, zorder=0)
 
-        for exp, (color, _label) in EXP_STYLE.items():
+        for exp, (color, _label, filled) in EXP_STYLE.items():
             sub = an[an.experiment == exp]
-            ax.scatter(sub['dGMT'], sub[col], s=42, c=color,
-                       edgecolor='white', linewidth=0.5, alpha=0.9, zorder=3)
+            if filled:
+                ax.scatter(sub['dGMT'], sub[col], s=42, facecolor=color,
+                           edgecolor='white', linewidth=0.5, alpha=0.9, zorder=3)
+            else:
+                ax.scatter(sub['dGMT'], sub[col], s=42, facecolor='none',
+                           edgecolor=color, linewidth=1.2, alpha=0.9, zorder=3)
 
         # 2 %/degC reference line on the precipitation panel.
         if mode == 'pct':
@@ -128,9 +136,11 @@ def make_figure():
         ax.tick_params(labelsize=8)
 
     # Shared experiment legend along the bottom.
-    handles = [plt.Line2D([0], [0], marker='o', ls='', mec='white', mew=0.5,
-                          mfc=color, ms=8, label=label)
-               for color, label in EXP_STYLE.values()]
+    handles = [plt.Line2D([0], [0], marker='o', ls='', ms=8, label=label,
+                          mfc=color if filled else 'none',
+                          mec='white' if filled else color,
+                          mew=0.5 if filled else 1.2)
+               for color, label, filled in EXP_STYLE.values()]
     fig.legend(handles=handles, loc='lower center', ncol=len(EXP_STYLE),
                fontsize=9, frameon=False, bbox_to_anchor=(0.5, -0.01))
 

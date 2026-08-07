@@ -11,12 +11,15 @@
 load "cvdp_data.functions.ncl"
 
 data_dir="cvdp_output_by_experiment/"
-files=systemfunc("ls "+data_dir+"{1pctCO2,abrupt4xCO2,lig127k,lgm,midHolocene,midPliocene-eoi400,piControl}/*.nc")
+;only the main per-simulation file, whose year range follows "cvdp_data." directly.
+;CVDP v6.1 also writes auxiliary per-variable files (.pdv., .siconc., .amv.tas. etc)
+;that hold no timeseries we want and break the filename parsing below.
+files=systemfunc("ls "+data_dir+"{1pctCO2,abrupt4xCO2,lig127k,lgm,midHolocene,midPliocene-eoi400,piControl}/*cvdp_data.[0-9]*-[0-9]*.nc")
 files = str_sub_str(files, data_dir, "")
 ;files=(/"INM-CM4-8_historical.cvdp_data.1850-2014.nc"/) ;select a single file for testing...
 
 ;define the filename for the outputting
-fname="tidy_numbers_per_simulations.csv"
+fname="tidy_numbers_cvdp6.1.csv"
 system("rm -f "+fname)
 
 
@@ -78,9 +81,11 @@ do fi = 0, dimsizes(files)-1
   headers(6)="Nino34 stddev"
   variables(6)=stat_ts_var(data_dir+files(fi),"nino34","stddev",ts_opt)
 
-  ;atlantic_nino mean
+  ;atlantic_nino mean. Read from the *_timeseries_mon copy of the index: it is
+  ;bit-identical but, unlike the bare index, still carries the AnnCycle attribute
+  ;that make_absolute/AnnCycAmp need under CVDP v6.1.
   headers(7)="AtlNino mean"
-  variables(7)=stat_ts_var(data_dir+files(fi),"atlantic_nino","mean",ts_opt_abs)
+  variables(7)=stat_ts_var(data_dir+files(fi),"atl3_timeseries_mon","mean",ts_opt_abs)
 
   ;atlantic_nino Mode
   headers(8)="AtlNino stddev"
@@ -88,21 +93,21 @@ do fi = 0, dimsizes(files)-1
 
   ;atlantic_nino Annual Cycle
   headers(9)="AtlNino AnnCycAmp"
-  variables(9)=stat_ts_var(data_dir+files(fi),"atlantic_nino","AnnCycAmp",ts_opt)
+  variables(9)=stat_ts_var(data_dir+files(fi),"atl3_timeseries_mon","AnnCycAmp",ts_opt)
 
   ;Atlantic Meridional Mode
   headers(10)="AMM mean"
-  variables(10)=stat_ts_var(data_dir+files(fi),"atlantic_meridional_mode","mean",ts_opt_abs)
+  variables(10)=stat_ts_var(data_dir+files(fi),"amm_timeseries_mon","mean",ts_opt_abs)
 
   ;Atlantic Meridional Mode
   headers(11)="AMM stddev"
   variables(11)=stat_ts_var(data_dir+files(fi),"atlantic_meridional_mode","stddev",ts_opt)
 
   ;AMM Annual Cycle
-  headers(9)="AMM AnnCycAmp"
-  variables(9)=stat_ts_var(data_dir+files(fi),"atlantic_meridional_mode","AnnCycAmp",ts_opt)
+  headers(12)="AMM AnnCycAmp"
+  variables(12)=stat_ts_var(data_dir+files(fi),"amm_timeseries_mon","AnnCycAmp",ts_opt)
 
-  patterns=(/"tas_spatialmean_ann","pr_spatialmean_ann","nao_pattern_djf","pdo_pattern_mon"/)
+  patterns=(/"tas_spatialmean_ann","pr_spatialmean_ann","nao_pattern_djf","pdv_pattern_mon"/)
   patterns_regions=(/(/(/-90.,90./),(/0.,359./)/),\ ;tas_spatialmean_ann - global mean 
                    (/(/-90.,90./),(/0.,359./)/),\ ;pr_spatialmean_ann - global mean
                    (/(/20.,80./),(/-90.,40./)/),\ ;nao_pattern_djf - NAO summer land NH 
@@ -112,11 +117,11 @@ do fi = 0, dimsizes(files)-1
  
   do patt_i=0,dimsizes(patterns)-1
     f=addfile(data_dir+files(fi),"r")
-    headers(10+patt_i)=patterns_human_names(patt_i)
+    headers(13+patt_i)=patterns_human_names(patt_i)
     if isfilevar(f,patterns(patt_i)) then
-      variables(10+patt_i)=extract_latlon_areastat(data_dir+files(fi),patterns(patt_i),patterns_regions(patt_i,0,:),patterns_regions(patt_i,1,:),patterns_stat(patt_i))
+      variables(13+patt_i)=extract_latlon_areastat(data_dir+files(fi),patterns(patt_i),patterns_regions(patt_i,0,:),patterns_regions(patt_i,1,:),patterns_stat(patt_i))
     else
-      variables(10+patt_i)=variables@_FillValue
+      variables(13+patt_i)=variables@_FillValue
     end if
     delete(f)
   end do  
