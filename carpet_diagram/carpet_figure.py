@@ -72,27 +72,43 @@ CMIP6_PMIP_MODELS = [
 ]
 # Kept as their own columns in the collapsed figure; everything else is averaged.
 KEEP_MODELS = frozenset(CMIP6_PMIP_MODELS) | {'UofT-CCSM-4'}
-COLLAPSED_LABEL = 'PMIP3'
+
+# Ensemble-mean summary columns, in the order they are pinned to the right-hand
+# edge. PMIP4 averages the CMIP6 archive models only — UofT-CCSM-4 keeps its own
+# column and is deliberately *not* folded in, since it is not in the CMIP6
+# holdings. Move it into the PMIP4 membership test below if you want it counted.
+COMPOSITE_LABELS = ['PMIP4', 'PMIP3']
 
 
-def collapse_old_models(df):
-    """Average every model outside KEEP_MODELS into a single COLLAPSED_LABEL column.
+def composite_membership(df):
+    """Map each summary column label -> the models it averages, for this data."""
+    have = set(df.model.unique())
+    return {
+        'PMIP4': sorted(have & set(CMIP6_PMIP_MODELS)),
+        'PMIP3': sorted(have - KEEP_MODELS),
+    }
 
-    The average is the plain mean of those models' RMSE within each row — not the
+
+def add_group_means(df):
+    """Keep KEEP_MODELS as columns and append the PMIP4 / PMIP3 mean columns.
+
+    Each summary is the plain mean of its members' RMSE within a row — not the
     RMSE of their ensemble-mean anomaly field, which would be lower because model
     errors partly cancel. `n_points` is carried through as the median so the
     small-sample '*' flag still behaves.
     """
-    keep = df[df.model.isin(KEEP_MODELS)].copy()
-    old = df[~df.model.isin(KEEP_MODELS)]
-    if old.empty:
-        return keep, []
-
-    agg = (old.groupby(['period', 'compilation'])
-              .agg(rmse=('rmse', 'mean'), n_points=('n_points', 'median'))
-              .reset_index())
-    agg['model'] = COLLAPSED_LABEL
-    return pd.concat([keep, agg], ignore_index=True), sorted(old.model.unique())
+    members = composite_membership(df)
+    frames = [df[df.model.isin(KEEP_MODELS)].copy()]
+    for label in COMPOSITE_LABELS:
+        sub = df[df.model.isin(members[label])]
+        if sub.empty:
+            continue
+        agg = (sub.groupby(['period', 'compilation'])
+                  .agg(rmse=('rmse', 'mean'), n_points=('n_points', 'median'))
+                  .reset_index())
+        agg['model'] = label
+        frames.append(agg)
+    return pd.concat(frames, ignore_index=True), members
 
 
 def load_rmse_tables():
@@ -132,9 +148,10 @@ def order_rows(df):
 def make_figure(out_name='carpet_diagram.png', collapse=False, title=None):
     df = load_rmse_tables()
 
-    collapsed_models = []
+    members = {}
     if collapse:
-        df, collapsed_models = collapse_old_models(df)
+        df, members = add_group_means(df)
+    composites = [c for c in COMPOSITE_LABELS if c in set(df.model)]
 
     row_keys, boundaries = order_rows(df)
 
@@ -148,18 +165,25 @@ def make_figure(out_name='carpet_diagram.png', collapse=False, title=None):
     # average (lower RMSE) is negative → warm (yellow/red); worse-than-average is
     # positive → cool (blue/purple); the mean sits at the pale centre. This shows model
     # ranking regardless of each row's absolute RMSE magnitude. Cells keep absolute °C.
+    #
+    # The baseline is the *individual models only*: the PMIP4/PMIP3 summary columns are
+    # placed on that scale but excluded from defining it, so the colours mean "vs the
+    # typical model" rather than "vs a mix of models and ensemble means". A consequence
+    # worth knowing when reading the figure: PMIP4 is by construction the mean of most
+    # of those same models, so it sits near the pale centre in every row — that is
+    # arithmetic, not a result. PMIP3's colour is the informative one.
+    individual = [m for m in rmse.columns if m not in composites]
+
     def relative_to_mean(r):
-        dev = r - r.mean()
-        scale = np.nanmax(np.abs(dev))
+        dev = r - r[individual].mean()
+        scale = np.nanmax(np.abs(dev[individual]))
         return dev / scale if np.isfinite(scale) and scale > 0 else dev * 0.0
 
     rel = rmse.apply(relative_to_mean, axis=1)
     # Columns: models sorted by mean relative RMSE (best-on-average on the left).
-    # The collapsed multi-model column is not a model, so it is pinned to the far
-    # right instead of competing in the ranking.
-    model_order = rel.mean(axis=0).sort_values().index.tolist()
-    if collapse and COLLAPSED_LABEL in model_order:
-        model_order = [m for m in model_order if m != COLLAPSED_LABEL] + [COLLAPSED_LABEL]
+    # The summary columns are not models, so they are pinned to the far right in
+    # COMPOSITE_LABELS order instead of competing in the ranking.
+    model_order = rel[individual].mean(axis=0).sort_values().index.tolist() + composites
     rmse = rmse.reindex(columns=model_order)
     rel = rel.reindex(columns=model_order)
     npts = npts.reindex(index=row_keys, columns=model_order)
@@ -207,9 +231,9 @@ def make_figure(out_name='carpet_diagram.png', collapse=False, title=None):
         for dy in (-0.085, 0.085):
             ax.axhline(b - 0.5 + dy, color='#222222', linewidth=1.2, zorder=5)
 
-    # Matching double rule before the collapsed multi-model column.
-    if collapse and COLLAPSED_LABEL in model_order:
-        xb = model_order.index(COLLAPSED_LABEL) - 0.5
+    # Matching double rule before the block of summary columns.
+    if composites:
+        xb = model_order.index(composites[0]) - 0.5
         for dx in (-0.085, 0.085):
             ax.axvline(xb + dx, color='#222222', linewidth=1.2, zorder=5)
 
@@ -220,16 +244,21 @@ def make_figure(out_name='carpet_diagram.png', collapse=False, title=None):
 
     ax.set_title(title or 'Model–reconstruction temperature mismatch (carpet diagram)',
                  fontsize=12, fontweight='bold', pad=10)
-    notes = ['cell numbers are absolute RMSE (°C); colour is each model vs its row-mean RMSE']
+    notes = ['cell numbers are absolute RMSE (°C); colour is each model vs the row-mean RMSE '
+             'of the individual models']
     if (npts.values[np.isfinite(npts.values)] < MIN_POINTS).any():
         notes.append(f'* fewer than {MIN_POINTS} proxy points — RMSE is noisy')
     fig.text(0.01, 0.01, '   '.join(notes), fontsize=7.5, color='#555555', ha='left')
-    if collapsed_models:
-        fig.text(0.01, -0.02,
-                 f'{COLLAPSED_LABEL} column = mean of the RMSEs of whichever of these '
-                 f'{len(collapsed_models)} pre-CMIP6 models ran that period (mean of '
-                 'RMSEs, not RMSE of the ensemble mean): ' + ', '.join(collapsed_models),
-                 fontsize=6.5, color='#555555', ha='left', wrap=True)
+
+    if composites:
+        lines = ['summary columns are the mean of their members\' RMSEs in each row (mean of '
+                 'RMSEs, not RMSE of the ensemble mean), over whichever members ran that period;'
+                 ' they do not contribute to the colour scale']
+        for label in composites:
+            lines.append(f'{label} ({len(members[label])}): ' + ', '.join(members[label]))
+        for k, line in enumerate(lines):
+            fig.text(0.01, -0.018 - 0.019 * k, line, fontsize=6.5, color='#555555',
+                     ha='left', wrap=True)
 
     fig.tight_layout()
     out_path = os.path.join(OUT_DIR, out_name)
@@ -238,6 +267,9 @@ def make_figure(out_name='carpet_diagram.png', collapse=False, title=None):
 
 
 if __name__ == '__main__':
-    make_figure()
-    make_figure(out_name='carpet_diagram_cmip6.png', collapse=True,
-                title='Model–reconstruction temperature mismatch — CMIP6-era PMIP models')
+    # The headline figure is the reduced one: a column per CMIP6-era PMIP model
+    # (plus UofT-CCSM-4), with PMIP4 and PMIP3 ensemble-mean columns on the right.
+    make_figure(out_name='carpet_diagram.png', collapse=True)
+    # The every-model version is kept alongside it.
+    make_figure(out_name='carpet_diagram_all_models.png',
+                title='Model–reconstruction temperature mismatch — all models')
