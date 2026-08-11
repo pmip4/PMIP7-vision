@@ -98,8 +98,13 @@ def composite_membership(df):
     }
 
 
-def add_group_means(df):
-    """Keep KEEP_MODELS as columns and append the PMIP4 / PMIP3 mean columns.
+def add_group_means(df, labels=COMPOSITE_LABELS, keep_only=True):
+    """Append the requested ensemble-mean columns, optionally dropping old models.
+
+    `labels` selects which of COMPOSITE_LABELS to build; `keep_only` restricts the
+    individual columns to KEEP_MODELS (the reduced figure) rather than showing
+    every model (the all-models figure). Membership is always worked out from the
+    full table, so PMIP4 averages the same models either way.
 
     Each summary is the plain mean of its members' RMSE within a row — not the
     RMSE of their ensemble-mean anomaly field, which would be lower because model
@@ -107,8 +112,8 @@ def add_group_means(df):
     small-sample '*' flag still behaves.
     """
     members = composite_membership(df)
-    frames = [df[df.model.isin(KEEP_MODELS)].copy()]
-    for label in COMPOSITE_LABELS:
+    frames = [df[df.model.isin(KEEP_MODELS)].copy() if keep_only else df.copy()]
+    for label in labels:
         sub = df[df.model.isin(members[label])]
         if sub.empty:
             continue
@@ -117,7 +122,7 @@ def add_group_means(df):
                   .reset_index())
         agg['model'] = label
         frames.append(agg)
-    return pd.concat(frames, ignore_index=True), members
+    return pd.concat(frames, ignore_index=True), {k: members[k] for k in labels}
 
 
 def load_rmse_tables():
@@ -154,12 +159,11 @@ def order_rows(df):
     return row_keys, boundaries
 
 
-def make_figure(out_name='carpet_diagram.png', collapse=False, title=None):
+def make_figure(out_name='carpet_diagram.png', labels=COMPOSITE_LABELS,
+                keep_only=True, title=None):
     df = load_rmse_tables()
 
-    members = {}
-    if collapse:
-        df, members = add_group_means(df)
+    df, members = add_group_means(df, labels=labels, keep_only=keep_only)
     composites = [c for c in COMPOSITE_LABELS if c in set(df.model)]
 
     row_keys, boundaries = order_rows(df)
@@ -279,8 +283,11 @@ def make_figure(out_name='carpet_diagram.png', collapse=False, title=None):
 
 if __name__ == '__main__':
     # The headline figure is the reduced one: a column per CMIP6-era PMIP model
-    # (plus UofT-CCSM-4), with PMIP4 and PMIP3 ensemble-mean columns on the right.
-    make_figure(out_name='carpet_diagram.png', collapse=True)
-    # The every-model version is kept alongside it.
+    # (plus UofT-CCSM-4), with PMIP4 and PMIP3 ensemble-mean columns on the left.
+    make_figure(out_name='carpet_diagram.png')
+    # The every-model version keeps the PMIP4 reference column so its colours are
+    # centred the same way; PMIP3 is left off because all of its members are
+    # already shown as their own columns. Add 'PMIP3' to labels if you want it.
     make_figure(out_name='carpet_diagram_all_models.png',
+                labels=['PMIP4'], keep_only=False,
                 title='Model–reconstruction temperature mismatch — all models')
