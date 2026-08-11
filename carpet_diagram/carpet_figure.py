@@ -27,14 +27,23 @@ OUT_DIR = os.path.join(SCRIPT_DIR, 'output')
 
 
 def better_worse_cmap():
-    """Diverging colormap for RMSE-relative-to-row-mean.
+    """Diverging colormap for RMSE relative to the reference column.
 
-    Below-mean (better than average) → warm YlOrRd (pale yellow → red); above-mean
-    (worse) → cool BuPu (pale → blue → purple); the mean sits at the pale centre.
+    Better than the reference → warm YlOrRd (white → yellow → red); worse → cool
+    BuPu (white → blue → purple). The inner end of each ramp is faded to pure
+    white so the reference value sits on an exactly white centre, rather than on
+    the pale-yellow/pale-blue seam the two colormaps would otherwise meet at.
     """
     n = 128
-    better = plt.get_cmap('YlOrRd')(np.linspace(1.0, 0.0, n))  # red → pale (best → mean)
-    worse = plt.get_cmap('BuPu')(np.linspace(0.0, 1.0, n))     # pale → purple (mean → worst)
+    better = plt.get_cmap('YlOrRd')(np.linspace(1.0, 0.0, n))  # red → pale (best → centre)
+    worse = plt.get_cmap('BuPu')(np.linspace(0.0, 1.0, n))     # pale → purple (centre → worst)
+
+    white = np.array([1.0, 1.0, 1.0, 1.0])
+    k = n // 5                                   # fade the innermost fifth to white
+    t = np.linspace(0.0, 1.0, k)[:, None]
+    better[n - k:] = better[n - k:] * (1 - t) + white * t
+    worse[:k] = white * (1 - t) + worse[:k] * t
+
     return LinearSegmentedColormap.from_list('better_worse', np.vstack([better, worse]))
 
 # Explicit row order, in two groups separated by a double rule in the figure:
@@ -159,31 +168,32 @@ def make_figure(out_name='carpet_diagram.png', collapse=False, title=None):
     npts = df.pivot_table(index=['period', 'compilation'], columns='model', values='n_points')
     rmse = rmse.reindex(index=row_keys)
 
-    # Per-row normalisation relative to the row mean: each cell is the model's signed
-    # deviation from that (period, compilation) row's average RMSE, scaled by the row's
-    # largest absolute deviation so the most extreme model reaches ±1. Better-than-
-    # average (lower RMSE) is negative → warm (yellow/red); worse-than-average is
-    # positive → cool (blue/purple); the mean sits at the pale centre. This shows model
-    # ranking regardless of each row's absolute RMSE magnitude. Cells keep absolute °C.
+    # Per-row normalisation: each cell is its signed deviation from a reference RMSE,
+    # scaled by the row's largest absolute deviation so the most extreme column reaches
+    # ±1. Below the reference (better) is negative → warm (yellow/red); above (worse) is
+    # positive → cool (blue/purple); the reference itself is the pale centre. This shows
+    # model ranking regardless of each row's absolute RMSE. Cells keep absolute °C.
     #
-    # The baseline is the *individual models only*: the PMIP4/PMIP3 summary columns are
-    # placed on that scale but excluded from defining it, so the colours mean "vs the
-    # typical model" rather than "vs a mix of models and ensemble means". A consequence
-    # worth knowing when reading the figure: PMIP4 is by construction the mean of most
-    # of those same models, so it sits near the pale centre in every row — that is
-    # arithmetic, not a result. PMIP3's colour is the informative one.
+    # The reference is the PMIP4 ensemble mean where that column exists, so every cell
+    # reads directly as "better or worse than the CMIP6 multi-model mean" and PMIP4 is
+    # white by definition. The all-models figure has no PMIP4 column and falls back to
+    # the row mean. The scale spans every column including the summaries, so nothing
+    # clips even when PMIP3 is the most extreme value in a row.
     individual = [m for m in rmse.columns if m not in composites]
+    reference = 'PMIP4' if 'PMIP4' in rmse.columns else None
 
-    def relative_to_mean(r):
-        dev = r - r[individual].mean()
-        scale = np.nanmax(np.abs(dev[individual]))
+    def relative_to_reference(r):
+        centre = r['PMIP4'] if reference else r[individual].mean()
+        if not np.isfinite(centre):
+            return r * np.nan
+        dev = r - centre
+        scale = np.nanmax(np.abs(dev))
         return dev / scale if np.isfinite(scale) and scale > 0 else dev * 0.0
 
-    rel = rmse.apply(relative_to_mean, axis=1)
-    # Columns: models sorted by mean relative RMSE (best-on-average on the left).
-    # The summary columns are not models, so they are pinned to the far right in
-    # COMPOSITE_LABELS order instead of competing in the ranking.
-    model_order = rel[individual].mean(axis=0).sort_values().index.tolist() + composites
+    rel = rmse.apply(relative_to_reference, axis=1)
+    # Columns: the summary columns first, at the left-hand edge in COMPOSITE_LABELS
+    # order, then the individual models alphabetically.
+    model_order = composites + sorted(individual)
     rmse = rmse.reindex(columns=model_order)
     rel = rel.reindex(columns=model_order)
     npts = npts.reindex(index=row_keys, columns=model_order)
@@ -231,29 +241,30 @@ def make_figure(out_name='carpet_diagram.png', collapse=False, title=None):
         for dy in (-0.085, 0.085):
             ax.axhline(b - 0.5 + dy, color='#222222', linewidth=1.2, zorder=5)
 
-    # Matching double rule before the block of summary columns.
+    # Matching double rule after the block of summary columns on the left.
     if composites:
-        xb = model_order.index(composites[0]) - 0.5
+        xb = len(composites) - 0.5
         for dx in (-0.085, 0.085):
             ax.axvline(xb + dx, color='#222222', linewidth=1.2, zorder=5)
 
     cbar = fig.colorbar(im, ax=ax, fraction=0.025, pad=0.02, ticks=[-1, 0, 1])
-    cbar.set_label('RMSE vs row mean', fontsize=8.5)
-    cbar.ax.set_yticklabels(['better', 'mean', 'worse'])
+    cbar.set_label(f'RMSE vs {reference} mean' if reference else 'RMSE vs row mean',
+                   fontsize=8.5)
+    cbar.ax.set_yticklabels(['better', reference or 'mean', 'worse'])
     cbar.ax.tick_params(labelsize=8)
 
     ax.set_title(title or 'Model–reconstruction temperature mismatch (carpet diagram)',
                  fontsize=12, fontweight='bold', pad=10)
-    notes = ['cell numbers are absolute RMSE (°C); colour is each model vs the row-mean RMSE '
-             'of the individual models']
+    centre_txt = (f'the {reference} ensemble-mean RMSE (so {reference} is white by definition)'
+                  if reference else 'the row-mean RMSE of the individual models')
+    notes = [f'cell numbers are absolute RMSE (°C); colour is each column vs {centre_txt}']
     if (npts.values[np.isfinite(npts.values)] < MIN_POINTS).any():
         notes.append(f'* fewer than {MIN_POINTS} proxy points — RMSE is noisy')
     fig.text(0.01, 0.01, '   '.join(notes), fontsize=7.5, color='#555555', ha='left')
 
     if composites:
         lines = ['summary columns are the mean of their members\' RMSEs in each row (mean of '
-                 'RMSEs, not RMSE of the ensemble mean), over whichever members ran that period;'
-                 ' they do not contribute to the colour scale']
+                 'RMSEs, not RMSE of the ensemble mean), over whichever members ran that period']
         for label in composites:
             lines.append(f'{label} ({len(members[label])}): ' + ', '.join(members[label]))
         for k, line in enumerate(lines):
