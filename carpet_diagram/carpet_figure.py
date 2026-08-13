@@ -62,6 +62,7 @@ ROW_GROUPS = [
     [('midHolocene', 'Erb'),
      ('lgm', 'Cleator'),
      ('lgm', 'Osman'),
+     ('lgm', 'Annan'),
      ('midPliocene-eoi400', 'Tierney')],
 ]
 

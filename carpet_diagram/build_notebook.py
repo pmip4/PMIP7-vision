@@ -139,7 +139,7 @@ recon.head()"""
 
 LGM_STEP1_MD = """## Step 1 — Reconstruction compilations
 
-Three LGM (21 ka) compilations. One is the underlying proxy synthesis, with unit weights:
+Four LGM (21 ka) compilations. One is the underlying proxy synthesis, with unit weights:
 
 - **Bartlein** — the Bartlein et al. (2011) pollen-based mean-annual-temperature synthesis
   at 21 ka (`Bartlein_mat_21ka.csv`, the NOAA `mat_delta_21ka_ALL_grid_2x2.csv`), the 21 ka
@@ -147,8 +147,8 @@ Three LGM (21 ka) compilations. One is the underlying proxy synthesis, with unit
   `mat_anm_mean` column. Note this is the proxy compilation that Cleator assimilated, so
   the Cleator row below is not independent of it.
 
-The other two are near-global gridded products, so each point gets a `cos(latitude)`
-weight for an area-fair RMSE:
+The other three are near-global gridded data assimilation products, so each point gets a
+`cos(latitude)` weight for an area-fair RMSE:
 
 - **Cleator** — the Cleator et al. (2020) vegetation-model-inversion **data assimilation**
   product (its own metadata: "made by combining pollen based reconstructions (from Bartlein
@@ -157,7 +157,14 @@ weight for an area-fair RMSE:
   (line 77); the only relevant field is `MAT` (mean-annual-temperature anomaly, °C).
 - **Osman** — the Last Glacial Maximum Reanalysis (Osman et al. 2021), the ensemble-mean
   `sat` field from `Osman_LGMR_21ka_SAT_anom_climo.nc`, already differenced to a 21 ka −
-  (0–1 ka) anomaly. The 96×144 grid is flattened to points, dropping fill values."""
+  (0–1 ka) anomaly. The 96×144 grid is flattened to points, dropping fill values.
+- **Annan** — Annan et al. (2022), an ensemble Kalman filter blending proxies with a
+  19-member PMIP prior. The `SAT.mean` field of `Annan_etal22.SAT.mean.lgm.nc` is already
+  an LGM anomaly: its area-weighted global mean is −4.46 °C, matching the −4.5 ± 0.9 °C
+  the paper reports. Two quirks — the coordinates are named `latitude`/`longitude` rather
+  than `lat`/`lon`, and the longitude axis is rolled (it runs 181…359 then 1…179 rather
+  than ascending). The roll is harmless here because Step 1 flattens the grid to points,
+  each carrying its own longitude, rather than interpolating the field."""
 
 LGM_STEP1_CODE = """# --- Bartlein: the 21 ka pollen MAT synthesis (scattered 2x2 cells) ---
 bar = pd.read_csv(os.path.join(RECON_DIR, 'Bartlein_mat_21ka.csv'))
@@ -198,11 +205,27 @@ osman = pd.DataFrame({
 })
 osman['source_table'] = 'Osman_LGMR_21ka_SAT_anom_climo.nc'
 
-for gridded in (cleator, osman):
+# --- Annan: flatten the gridded EnKF SAT anomaly field to points ---
+# Coordinates here are 'latitude'/'longitude', and the longitude axis is rolled
+# (181..359 then 1..179). That does not matter: we flatten to points, so every
+# value keeps its own longitude and no interpolation of this field takes place.
+ANNAN_FILE = 'Annan_etal22.SAT.mean.lgm.nc'
+ads = xr.open_dataset(os.path.join(RECON_DIR, ANNAN_FILE), decode_times=False)
+asat = ads['SAT.mean'].where(np.abs(ads['SAT.mean']) < 1e30)
+alon2d, alat2d = np.meshgrid(asat['longitude'].values, asat['latitude'].values)
+annan = pd.DataFrame({
+    'compilation': 'Annan', 'reference': 'Annan et al. 2022', 'site': np.nan,
+    'Proxy': 'EnKF SAT (assim.)',
+    'Latitude': alat2d.ravel().astype(float), 'Longitude': alon2d.ravel().astype(float),
+    'Anom': asat.values.ravel().astype(float),
+})
+annan['source_table'] = ANNAN_FILE
+
+for gridded in (cleator, osman, annan):
     # Regular lat/lon grids: cos-latitude weight makes the RMSE area-fair.
     gridded['weight'] = np.cos(np.deg2rad(gridded['Latitude']))
 
-recon = pd.concat([bartlein, cleator, osman], ignore_index=True)
+recon = pd.concat([bartlein, cleator, osman, annan], ignore_index=True)
 recon = recon.dropna(subset=['Latitude', 'Longitude', 'Anom'])
 
 print(recon.groupby('compilation').size())
@@ -278,7 +301,7 @@ PERIODS = [
     dict(
         experiment='lgm',
         long_name='Last Glacial Maximum (21 ka)',
-        compilations='Bartlein 21 ka (Bartlein et al. 2011), Cleator (Cleator et al. 2020)\n                      and Osman (LGMR; Osman et al. 2021)',
+        compilations='Bartlein 21 ka (Bartlein et al. 2011), Cleator (Cleator et al. 2020),\n                      Osman (LGMR; Osman et al. 2021) and Annan (Annan et al. 2022)',
         step1_md=LGM_STEP1_MD,
         step1_code=LGM_STEP1_CODE,
     ),

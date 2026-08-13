@@ -27,6 +27,11 @@ Last Glacial Maximum
   holds only LGM_reconstruction.csv and a README, with no proxy-only file, and the data sit on a regular 2x2 grid rather than at sites. So its proxy input is the Bartlein 21ka
   file above, which means the two rows are not independent. It was downloaded from https://researchdata.reading.ac.uk/244/1/LGM_reconstruction.csv and only the MAT column is
   relevant. In the carpet diagram it sits below the double rule with the other DA products.
+* Annan_etal22.SAT.mean.lgm.nc is the data assimilation product of Annan, Hargreaves & Mauritsen (2022, Clim Past 18, 1883, https://cp.copernicus.org/articles/18/1883/2022/), which
+  blends proxies with a 19-member PMIP prior using an ensemble Kalman filter. The SAT.mean field is already an LGM anomaly and needs no re-referencing: its area-weighted global mean
+  is -4.46 degC, against the -4.5 +/- 0.9 degC the paper reports. Two things to watch if you touch this file - the coordinates are called latitude/longitude rather than lat/lon, and the
+  longitude axis is rolled (it runs 181..359 then 1..179 rather than ascending). The roll is harmless as used, because Step 1 flattens the grid to points so each value keeps its own
+  longitude and the field is never interpolated; it would matter if anything tried to interpolate it. 2x2 degree grid, 16200 points, all finite, cos(latitude) weights.
 * The Osman file is the last Glacial Maximum Reanalysis from Osman et al (2020). It is averaged between the 20900 and 21100 bins. Downloaded from https://www.ncei.noaa.gov/pub/data/paleo/reconstructions/osman2021/LGMR_SAT_climo.nc
 
 last interglacial (lig127k)
