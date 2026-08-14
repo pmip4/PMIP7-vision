@@ -56,8 +56,8 @@ _I'm not so sure what wants to go in this section: ideas?_
 
 ### Outlook for PMIP7
 
-![Figure 5: The PMIP7 experiments and their relationship to CMIP7.](expts-plan/expts-plan.temp-vs-run-time.png)
-[Figure 5: The PMIP7 experiments and their relationship to CMIP7.](expts-plan/expts-plan.temp-vs-run-time.png)
+![Figure 5: The PMIP7 experiments and their relationship to CMIP7.](expts-plan/expts-plan.temp-vs-resources.png)
+[Figure 5: The PMIP7 experiments and their relationship to CMIP7.](expts-plan/expts-plan.temp-vs-resources.png)
 
 * Brief description of CMIP7, and slightly shifted nature of PMIP within it
 * Describe abrupt127k experiment and focus on Arctic
