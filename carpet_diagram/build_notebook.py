@@ -65,19 +65,25 @@ recon.head()"""
 
 MIDHOL_STEP1_MD = """## Step 1 — Reconstruction compilations
 
-Three midHolocene (6 ka) compilations. The first two are scattered proxy sites, each in
-its own CSV with a plain header row and unit weight per point:
+Four midHolocene (6 ka) compilations. The first three are scattered proxy sites, each
+with unit weight per point:
 
 - **Bartlein** — the Bartlein et al. (2011) pollen-based mean-annual-temperature (MAT)
-  anomalies; the annual anomaly is the `mat_anm_mean` column.
+  anomalies; the annual anomaly is the `mat_anm_mean` column of a plain-header CSV.
 - **Temp12k** — the Temp12k database extraction (Kaufman et al. 2020; described in
-  Brierley et al. 2020); the annual anomaly is the `anom` column.
+  Brierley et al. 2020); the annual anomaly is the `anom` column of a plain-header CSV.
+- **P2F** — the Past 2 Future ocean-temperature compilation (Cutmore et al., Durham,
+  in prep; work in progress), `P2F-recommended-SST.midHolocene.xlsx`. Only rows whose
+  `Recommendation` column reads exactly `Recommend` are kept (others carry a note
+  explaining why that site was excluded); the anomaly is `Annual SST` minus the site's
+  `ERSSTv6 mean annual SST (1870-1899)` modern climatology.
 
-Both store latitude/longitude as plain `lat`/`lon` columns (longitudes −180–180°). We
-normalise them to the shared `compilation, reference, site, Proxy, Latitude, Longitude,
-Anom` schema used by the rest of the pipeline.
+Bartlein/Temp12k store latitude/longitude as plain `lat`/`lon` columns (longitudes
+−180–180°); P2F uses `Latitude`/`Longitude`. All three are normalised to the shared
+`compilation, reference, site, Proxy, Latitude, Longitude, Anom` schema used by the rest
+of the pipeline.
 
-The third is a gridded data assimilation product, flattened to points with a
+The fourth is a gridded data assimilation product, flattened to points with a
 `cos(latitude)` weight so its near-global RMSE is area-fair:
 
 - **Erb** — the Holocene Reconstruction of Erb et al. (2022). Note the published
@@ -111,6 +117,21 @@ for comp, fname, anom_col, ref, proxy in recon_specs:
     sub['weight'] = 1.0          # scattered sites: equal weight
     frames.append(sub)
 
+# --- P2F: Past 2 Future SST compilation (Cutmore et al., in prep) ---
+P2F_FILE = 'P2F-recommended-SST.midHolocene.xlsx'
+p2f = pd.read_excel(os.path.join(RECON_DIR, P2F_FILE))
+p2f = p2f[p2f['Recommendation'] == 'Recommend'].copy()
+p2f_df = pd.DataFrame({
+    'compilation': 'P2F', 'reference': 'Past 2 Future (Cutmore et al., in prep)',
+    'site': p2f['Core'].astype(str).str.strip(),
+    'Proxy': p2f['Proxy/Proxies'],
+    'Latitude': p2f['Latitude'].astype(float), 'Longitude': p2f['Longitude'].astype(float),
+    'Anom': (p2f['Annual SST'] - p2f['ERSSTv6 mean annual SST (1870-1899)']).astype(float),
+})
+p2f_df['source_table'] = P2F_FILE
+p2f_df['weight'] = 1.0            # scattered sites: equal weight
+frames.append(p2f_df)
+
 # --- Erb: flatten the gridded 6 ka - (0-1 ka) reconstruction to points ---
 ERB_FILE = 'Erbetal2022_6ka_minus_0-1ka_anom.nc'
 ds = xr.open_dataset(os.path.join(RECON_DIR, ERB_FILE), decode_times=False)
@@ -139,13 +160,17 @@ recon.head()"""
 
 LGM_STEP1_MD = """## Step 1 — Reconstruction compilations
 
-Three LGM (21 ka) compilations. One is the underlying proxy synthesis, with unit weights:
+Four LGM (21 ka) compilations. Two are scattered proxy sites, with unit weights:
 
 - **Bartlein** — the Bartlein et al. (2011) pollen-based mean-annual-temperature synthesis
   at 21 ka (`Bartlein_mat_21ka.csv`, the NOAA `mat_delta_21ka_ALL_grid_2x2.csv`), the 21 ka
   counterpart of the file used for the midHolocene row. 98 cells with an anomaly, in the
   `mat_anm_mean` column. Note this is the proxy compilation that Cleator assimilated, so
   the Cleator row below is not independent of it.
+- **P2F** — the Past 2 Future ocean-temperature compilation (Cutmore et al., Durham,
+  in prep; work in progress), `P2F-Recommended-SST-records_LGM_C.Brierley.xlsx`. Only rows
+  whose `Recommendation` column reads exactly `Recommend` are kept; the anomaly is
+  `Annual SST` minus the site's `ERSSTv6 mean annual SST (1870-1899)` modern climatology.
 
 The other two are near-global gridded products, so each point gets a `cos(latitude)`
 weight for an area-fair RMSE:
@@ -170,6 +195,20 @@ bartlein = pd.DataFrame({
 })
 bartlein['source_table'] = 'Bartlein_mat_21ka.csv'
 bartlein['weight'] = 1.0                  # scattered sites: equal weight
+
+# --- P2F: Past 2 Future SST compilation (Cutmore et al., in prep) ---
+P2F_FILE = 'P2F-Recommended-SST-records_LGM_C.Brierley.xlsx'
+p2f = pd.read_excel(os.path.join(RECON_DIR, P2F_FILE))
+p2f = p2f[p2f['Recommendation'] == 'Recommend'].copy()
+p2f_df = pd.DataFrame({
+    'compilation': 'P2F', 'reference': 'Past 2 Future (Cutmore et al., in prep)',
+    'site': p2f['Core'].astype(str).str.strip(),
+    'Proxy': p2f['Proxy/Proxies'],
+    'Latitude': p2f['Latitude'].astype(float), 'Longitude': p2f['Longitude'].astype(float),
+    'Anom': (p2f['Annual SST'] - p2f['ERSSTv6 mean annual SST (1870-1899)']).astype(float),
+})
+p2f_df['source_table'] = P2F_FILE
+p2f_df['weight'] = 1.0                    # scattered sites: equal weight
 
 # --- Cleator: gridded land MAT anomalies from a CSV with a preamble ---
 CLE_COLS = ['lat', 'lon', 'MI', 'MAP', 'MAT', 'MTCO', 'MTWA', 'GDD5',
@@ -202,7 +241,7 @@ for gridded in (cleator, osman):
     # Regular lat/lon grids: cos-latitude weight makes the RMSE area-fair.
     gridded['weight'] = np.cos(np.deg2rad(gridded['Latitude']))
 
-recon = pd.concat([bartlein, cleator, osman], ignore_index=True)
+recon = pd.concat([bartlein, p2f_df, cleator, osman], ignore_index=True)
 recon = recon.dropna(subset=['Latitude', 'Longitude', 'Anom'])
 
 print(recon.groupby('compilation').size())
@@ -278,7 +317,7 @@ PERIODS = [
     dict(
         experiment='lgm',
         long_name='Last Glacial Maximum (21 ka)',
-        compilations='Bartlein 21 ka (Bartlein et al. 2011), Cleator (Cleator et al. 2020)\n                      and Osman (LGMR; Osman et al. 2021)',
+        compilations='Bartlein 21 ka (Bartlein et al. 2011), P2F (Past 2 Future, in prep),\n                      Cleator (Cleator et al. 2020) and Osman (LGMR; Osman et al. 2021)',
         step1_md=LGM_STEP1_MD,
         step1_code=LGM_STEP1_CODE,
     ),
@@ -292,7 +331,7 @@ PERIODS = [
     dict(
         experiment='midHolocene',
         long_name='mid-Holocene (6 ka)',
-        compilations='Bartlein (Bartlein et al. 2011), Temp12k (Kaufman et al. 2020) and\n                      Erb (Holocene Reconstruction; Erb et al. 2022)',
+        compilations='Bartlein (Bartlein et al. 2011), Temp12k (Kaufman et al. 2020), P2F\n                      (Past 2 Future, in prep) and Erb (Holocene Reconstruction; Erb et al. 2022)',
         step1_md=MIDHOL_STEP1_MD,
         step1_code=MIDHOL_STEP1_CODE,
     ),

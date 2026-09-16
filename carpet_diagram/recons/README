@@ -16,6 +16,7 @@ found at https://github.com/chrisbrierley/PMIP4-midHolocene/blob/master/recons/a
       ncwa -a ages -d ages,0.,1000.   Erbetl2022_holocene_reconstruction.nc Erbetal2022_0-1ka_reconstruction.nc
       ncdiff Erbetal2022_6ka_reconstruction.nc Erbetal2022_0-1ka_reconstruction.nc Erbetal2022_6ka_minus_0-1ka_anom.nc
   It is a gridded 64x96 field, so it is flattened to points and given cos(latitude) weights for an area-fair RMSE.
+* P2F-recommended-SST.midHolocene.xls is the upcoming dataset from the the Past 2 Future project. It contains ocean temperature reconstructions. It is a work in progress and is compiled by Anna Cutmore (Durham). Only the recommded values should be used. 
 
 Last Glacial Maximum
 * Bartlein_mat_21ka.csv is the 21ka half of the Bartlein et al (2011) pollen synthesis - the same product as the midHolocene Bartlein file, just the other time slice. Downloaded
@@ -28,6 +29,8 @@ Last Glacial Maximum
   file above, which means the two rows are not independent. It was downloaded from https://researchdata.reading.ac.uk/244/1/LGM_reconstruction.csv and only the MAT column is
   relevant. In the carpet diagram it sits below the double rule with the other DA products.
 * The Osman file is the last Glacial Maximum Reanalysis from Osman et al (2020). It is averaged between the 20900 and 21100 bins. Downloaded from https://www.ncei.noaa.gov/pub/data/paleo/reconstructions/osman2021/LGMR_SAT_climo.nc
+* P2F-Recommended-SST-records_LGM_C.Brierley.xls is the upcoming dataset from the the Past 2 Future project. It contains ocean temperature reconstructions. It is a work in progress and is compiled by Anna Cutmore (Durham). Only the recommded values should be used. 
+
 
 last interglacial (lig127k)
 * The Hoffman et al (2017) and Capron et al (2017) reconstruction compilations are taken from the Supplement of Otto-Bleisner et al (2020) from https://cp.copernicus.org/articles/17/63/2021/cp-17-63-2021-supplement.zip

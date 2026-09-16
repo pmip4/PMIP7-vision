@@ -29,14 +29,14 @@ OUT_DIR = os.path.join(SCRIPT_DIR, 'output')
 def better_worse_cmap():
     """Diverging colormap for RMSE relative to the reference column.
 
-    Better than the reference → warm YlOrRd (white → yellow → red); worse → cool
+    Worse than the reference → warm YlOrRd (white → yellow → red); better → cool
     BuPu (white → blue → purple). The inner end of each ramp is faded to pure
     white so the reference value sits on an exactly white centre, rather than on
     the pale-yellow/pale-blue seam the two colormaps would otherwise meet at.
     """
     n = 128
-    better = plt.get_cmap('YlOrRd')(np.linspace(1.0, 0.0, n))  # red → pale (best → centre)
-    worse = plt.get_cmap('BuPu')(np.linspace(0.0, 1.0, n))     # pale → purple (centre → worst)
+    better = plt.get_cmap('BuPu')(np.linspace(1.0, 0.0, n))    # purple → pale (best → centre)
+    worse = plt.get_cmap('YlOrRd')(np.linspace(0.0, 1.0, n))   # pale → red (centre → worst)
 
     white = np.array([1.0, 1.0, 1.0, 1.0])
     k = n // 5                                   # fade the innermost fifth to white
@@ -46,10 +46,11 @@ def better_worse_cmap():
 
     return LinearSegmentedColormap.from_list('better_worse', np.vstack([better, worse]))
 
-# Explicit row order, in two groups separated by a double rule in the figure:
-# the proxy compilations first, then the gridded data assimilation products.
-# Any (period, compilation) present in the data but not listed here is appended
-# as a further group rather than silently dropped.
+# Explicit row order, in three groups each separated by a double rule in the
+# figure: the established proxy compilations, then the (work-in-progress) P2F
+# compilations, then the gridded data assimilation products. Any (period,
+# compilation) present in the data but not listed here is appended as a
+# further group rather than silently dropped.
 ROW_GROUPS = [
     [('midHolocene', 'Bartlein'),
      ('midHolocene', 'Temp12k'),
@@ -57,6 +58,11 @@ ROW_GROUPS = [
      ('lig127k', 'Hoffman'),
      ('lig127k', 'Capron'),
      ('midPliocene-eoi400', 'Foley-Dowsett')],
+    # Past 2 Future (Cutmore et al., Durham; in prep) ocean-temperature
+    # compilation — a proxy compilation, but kept in its own group below the
+    # established rows while it is still work in progress.
+    [('midHolocene', 'P2F'),
+     ('lgm', 'P2F')],
     # Cleator is a data assimilation product too (it assimilates the Bartlein
     # 21 ka pollen synthesis above into PMIP3 output), so it belongs here.
     [('midHolocene', 'Erb'),
@@ -239,8 +245,8 @@ def make_figure(out_name='carpet_diagram.png', labels=COMPOSITE_LABELS,
     ax.tick_params(which='minor', length=0)
     ax.tick_params(which='major', length=0)
 
-    # Double rule between row groups (proxy compilations above, data
-    # assimilation products below).
+    # Double rule between row groups (established proxy compilations, then
+    # P2F, then the data assimilation products).
     for b in boundaries:
         for dy in (-0.085, 0.085):
             ax.axhline(b - 0.5 + dy, color='#222222', linewidth=1.2, zorder=5)
