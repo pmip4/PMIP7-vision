@@ -52,18 +52,35 @@ def fmt_bounds(lat, lon):
     return f'{lat[0]:g}–{ns(lat[1])}, {ew(lon[0])}–{ew(lon[1])}'
 
 
-def regional_rmse(path, lat, lon):
-    """Weighted RMSE and bias per (model, compilation) inside the box.
+def weighted_mean(values, weights):
+    """Weighted mean over the finite entries; NaN if nothing is finite."""
+    ok = np.isfinite(values) & np.isfinite(weights)
+    if not ok.any():
+        return np.nan
+    return float(np.sum(weights[ok] * values[ok]) / np.sum(weights[ok]))
 
-    Mirrors Step 4 of the notebooks exactly — the same weight-weighted RMSE and
-    bias over the points where both the sampled model value and the weight are
-    finite — but over the boxed subset of rows.
+
+def regional_rmse(path, lat, lon):
+    """Weighted RMSE, bias and mean anomaly per (model, compilation) in the box.
+
+    `rmse` and `bias` mirror Step 4 of the notebooks exactly — the same
+    weight-weighted statistics over the points where both the sampled model
+    value and the weight are finite — but over the boxed subset of rows.
+
+    Two extra columns drive the regional figure, which prints anomalies rather
+    than errors: `model_mean` is the weighted mean of the model's own anomaly
+    over those same points, and `recon_mean` is the weighted mean of the
+    reconstruction over every boxed point of that compilation. `recon_mean` is a
+    property of the row, so it repeats down the model column.
     """
     df = pd.read_csv(path)
     models = [c for c in df.columns if c not in META_COLS]
 
     inside = (df.Latitude.between(*lat)) & (df.Longitude.between(*lon))
     sub = df[inside]
+
+    recon_mean = {comp: weighted_mean(g['recon_anom'].values, g['weight'].values)
+                  for comp, g in sub.groupby('compilation')}
 
     records = []
     for m in models:
@@ -76,10 +93,14 @@ def regional_rmse(path, lat, lon):
                 dv, wv = diff[valid], w[valid]
                 rmse = float(np.sqrt(np.sum(wv * dv ** 2) / np.sum(wv)))
                 bias = float(np.sum(wv * dv) / np.sum(wv))
+                # The model mean uses the same points as the RMSE, so the two
+                # always describe the same sample.
+                model_mean = float(np.sum(wv * grp[m].values[valid]) / np.sum(wv))
             else:
-                rmse = bias = np.nan
+                rmse = bias = model_mean = np.nan
             records.append({'model': m, 'compilation': comp, 'n_points': n,
-                            'rmse': rmse, 'bias': bias})
+                            'rmse': rmse, 'bias': bias, 'model_mean': model_mean,
+                            'recon_mean': recon_mean[comp]})
     return pd.DataFrame(records), sorted(df.compilation.unique()), len(sub), len(df)
 
 
@@ -130,13 +151,18 @@ def main():
 
     note = (f'restricted to the {label} reconstruction points '
             '(rows are the same compilations, subsetted — not re-fitted)')
-    cf.make_figure(out_name=f'carpet_diagram_{args.name}.png', rmse_dir=region_dir,
-                   note=note,
-                   title=f'Model–reconstruction temperature mismatch — {label}')
+    # The regional figure prints the mean anomaly rather than the RMSE: over a
+    # single region the anomaly itself is the readable quantity, and the
+    # reconstruction column gives it something to be read against. Colour still
+    # comes from the RMSE, so the ranking is unchanged.
+    shared = dict(rmse_dir=region_dir, note=note, value_col='model_mean',
+                  value_label='the weighted mean model anomaly (°C) over that row\'s '
+                              'reconstruction points', recon_col=True)
+    cf.make_figure(out_name=f'carpet_diagram_{args.name}.png', **shared,
+                   title=f'Model–reconstruction temperature anomalies — {label}')
     cf.make_figure(out_name=f'carpet_diagram_{args.name}_all_models.png',
-                   labels=['PMIP4'], keep_only=False, rmse_dir=region_dir,
-                   note=note,
-                   title=f'Model–reconstruction temperature mismatch, all models — {label}')
+                   labels=['PMIP4'], keep_only=False, **shared,
+                   title=f'Model–reconstruction temperature anomalies, all models — {label}')
 
 
 if __name__ == '__main__':

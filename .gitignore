@@ -179,3 +179,14 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+# P2F recommended-SST source data: the supplied workbooks and the verbatim CSV
+# dumps of them that carpet_diagram Step 1 reads. Deliberately untracked — see
+# carpet_diagram/recons/README for how to regenerate the dumps from the .xlsx.
+carpet_diagram/recons/*/P2F*.xlsx
+carpet_diagram/recons/*/P2F_recommended_sst_*.csv
+
+# Point-level carpet_diagram outputs: these carry every reconstruction site's
+# coordinates and anomaly, including the P2F records above, so they stay out of
+# the repo. The aggregate rmse_long_*/rmse_summary_* tables are still tracked.
+carpet_diagram/output/recon_points_*.csv
+carpet_diagram/output/model_anom_at_recon_*.csv

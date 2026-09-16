@@ -65,7 +65,7 @@ recon.head()"""
 
 MIDHOL_STEP1_MD = """## Step 1 — Reconstruction compilations
 
-Three midHolocene (6 ka) compilations. The first two are scattered proxy sites, each in
+Four midHolocene (6 ka) compilations. The first two are scattered proxy sites, each in
 its own CSV with a plain header row and unit weight per point:
 
 - **Bartlein** — the Bartlein et al. (2011) pollen-based mean-annual-temperature (MAT)
@@ -86,7 +86,16 @@ The third is a gridded data assimilation product, flattened to points with a
   comparable with a model `midHolocene − piControl` anomaly. We therefore use
   `Erbetal2022_6ka_minus_0-1ka_anom.nc`, the 5.5–6.5 ka mean minus the 0–1 ka mean; the
   shared 3–5 ka baseline cancels in the difference, leaving a 6 ka − (0–1 ka) anomaly on
-  the same footing as Osman's LGM field."""
+  the same footing as Osman's LGM field.
+
+The fourth is a scattered-site marine compilation with unit weights:
+
+- **P2F** — the recommended annual sea-surface-temperature records assembled for the
+  Past2Future synthesis (`P2F_recommended_sst_midHolocene.csv`, a verbatim CSV dump of
+  the supplied workbook). The `SST_Anomaly` column is each core's annual SST minus the
+  ERSSTv6 1870–1899 mean at its grid cell, so it is already an anomaly. These are SSTs
+  compared against model `tas`, on the same footing as the lig127k and midPliocene
+  marine rows."""
 
 MIDHOL_STEP1_CODE = """# (compilation, filename, anomaly column, reference label, proxy label)
 recon_specs = [
@@ -127,6 +136,39 @@ erb['source_table'] = ERB_FILE
 erb['weight'] = np.cos(np.deg2rad(erb['Latitude']))
 frames.append(erb)
 
+# --- P2F: the recommended annual SST records (scattered marine cores) ---
+# A verbatim CSV dump of the P2F workbook (see recons/README for the command).
+# `SST_Anomaly` is the core's annual SST minus the ERSSTv6 1870-1899 mean at its
+# grid cell, so it is already the anomaly we want and needs no re-referencing.
+# These are SSTs benchmarked against model `tas`, exactly as the lig127k Hoffman
+# and Capron and the midPliocene Foley-Dowsett rows already are.
+P2F_FILE = 'P2F_recommended_sst_midHolocene.csv'
+p2f = pd.read_csv(os.path.join(RECON_DIR, P2F_FILE))
+p2f.columns = [c.strip() for c in p2f.columns]
+
+# Coordinate check: the site `Latitude` should agree with the spreadsheet's own
+# ERSST grid latitude. Where the two disagree in sign the site column has a sign
+# typo (e.g. GeoB7112-5, a Chile-margin core listed at +24 deg N), so take the
+# hemisphere from the ERSST cell. Rows within 2 deg of the equator are skipped:
+# there a sign difference is just rounding across it.
+flip = (np.sign(p2f['Latitude']) != np.sign(p2f['ERSST Lat'])) & (p2f['ERSST Lat'].abs() > 2)
+if flip.any():
+    print('P2F: latitude sign taken from the ERSST cell for',
+          ', '.join(p2f.loc[flip, 'Core'].astype(str)))
+    p2f.loc[flip, 'Latitude'] = -p2f.loc[flip, 'Latitude']
+
+p2f_pts = pd.DataFrame({
+    'compilation': 'P2F', 'reference': 'P2F recommended SST records',
+    'site': p2f['Core'].astype(str),
+    'Proxy': p2f['Proxy/Proxies'].astype(str),
+    'Latitude': p2f['Latitude'].astype(float),
+    'Longitude': p2f['Longitude'].astype(float),
+    'Anom': p2f['SST_Anomaly'].astype(float),
+})
+p2f_pts['source_table'] = P2F_FILE
+p2f_pts['weight'] = 1.0                   # scattered sites: equal weight
+frames.append(p2f_pts)
+
 recon = pd.concat(frames, ignore_index=True)
 recon = recon.dropna(subset=['Latitude', 'Longitude', 'Anom'])
 
@@ -139,13 +181,19 @@ recon.head()"""
 
 LGM_STEP1_MD = """## Step 1 — Reconstruction compilations
 
-Four LGM (21 ka) compilations. One is the underlying proxy synthesis, with unit weights:
+Five LGM (21 ka) compilations. Two are proxy compilations, with unit weights:
 
 - **Bartlein** — the Bartlein et al. (2011) pollen-based mean-annual-temperature synthesis
   at 21 ka (`Bartlein_mat_21ka.csv`, the NOAA `mat_delta_21ka_ALL_grid_2x2.csv`), the 21 ka
   counterpart of the file used for the midHolocene row. 98 cells with an anomaly, in the
   `mat_anm_mean` column. Note this is the proxy compilation that Cleator assimilated, so
   the Cleator row below is not independent of it.
+- **P2F** — the recommended annual sea-surface-temperature records assembled for the
+  Past2Future synthesis (`P2F_recommended_sst_lgm.csv`, a verbatim CSV dump of the
+  supplied workbook). The `SST_Anomaly` column is each core's annual SST minus the
+  ERSSTv6 1870–1899 mean at its grid cell, so it is already an anomaly. These are SSTs
+  compared against model `tas`, on the same footing as the lig127k and midPliocene
+  marine rows.
 
 The other three are near-global gridded data assimilation products, so each point gets a
 `cos(latitude)` weight for an area-fair RMSE:
@@ -225,7 +273,40 @@ for gridded in (cleator, osman, annan):
     # Regular lat/lon grids: cos-latitude weight makes the RMSE area-fair.
     gridded['weight'] = np.cos(np.deg2rad(gridded['Latitude']))
 
-recon = pd.concat([bartlein, cleator, osman, annan], ignore_index=True)
+
+# --- P2F: the recommended annual SST records (scattered marine cores) ---
+# A verbatim CSV dump of the P2F workbook (see recons/README for the command).
+# `SST_Anomaly` is the core's annual SST minus the ERSSTv6 1870-1899 mean at its
+# grid cell, so it is already the anomaly we want and needs no re-referencing.
+# These are SSTs benchmarked against model `tas`, exactly as the lig127k Hoffman
+# and Capron and the midPliocene Foley-Dowsett rows already are.
+P2F_FILE = 'P2F_recommended_sst_lgm.csv'
+p2f = pd.read_csv(os.path.join(RECON_DIR, P2F_FILE))
+p2f.columns = [c.strip() for c in p2f.columns]
+
+# Coordinate check: the site `Latitude` should agree with the spreadsheet's own
+# ERSST grid latitude. Where the two disagree in sign the site column has a sign
+# typo (e.g. GeoB7112-5, a Chile-margin core listed at +24 deg N), so take the
+# hemisphere from the ERSST cell. Rows within 2 deg of the equator are skipped:
+# there a sign difference is just rounding across it.
+flip = (np.sign(p2f['Latitude']) != np.sign(p2f['ERSST Lat'])) & (p2f['ERSST Lat'].abs() > 2)
+if flip.any():
+    print('P2F: latitude sign taken from the ERSST cell for',
+          ', '.join(p2f.loc[flip, 'Core'].astype(str)))
+    p2f.loc[flip, 'Latitude'] = -p2f.loc[flip, 'Latitude']
+
+p2f_pts = pd.DataFrame({
+    'compilation': 'P2F', 'reference': 'P2F recommended SST records',
+    'site': p2f['Core'].astype(str),
+    'Proxy': p2f['Proxy/Proxies'].astype(str),
+    'Latitude': p2f['Latitude'].astype(float),
+    'Longitude': p2f['Longitude'].astype(float),
+    'Anom': p2f['SST_Anomaly'].astype(float),
+})
+p2f_pts['source_table'] = P2F_FILE
+p2f_pts['weight'] = 1.0                   # scattered sites: equal weight
+
+recon = pd.concat([bartlein, cleator, osman, annan, p2f_pts], ignore_index=True)
 recon = recon.dropna(subset=['Latitude', 'Longitude', 'Anom'])
 
 print(recon.groupby('compilation').size())

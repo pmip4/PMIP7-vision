@@ -48,3 +48,27 @@ midPliocene-eoi400
   The carpet diagram reads the _changes file. It is a gridded 180x360 field (the 3 southernmost and 3 northernmost latitude rows are all fill and get dropped, leaving
   62640 points), flattened to points with cos(latitude) weights. Global mean warming is +5.3 degC.
 
+
+P2F recommended SST records (midHolocene and lgm rows)
+------------------------------------------------------
+recons/midHolocene/P2F-recommended-SST.midHolocene.xlsx and
+recons/lgm/P2F-Recommended-SST-records_LGM_C.Brierley.xlsx are the supplied
+workbooks. Step 1 reads a verbatim CSV dump of each rather than the .xlsx
+itself, because the my-cli-py environment has no openpyxl. The dumps are
+P2F_recommended_sst_midHolocene.csv and P2F_recommended_sst_lgm.csv, made with
+the esmvaltool environment (which does have openpyxl):
+
+  python - <<'PY'
+  import pandas as pd
+  for src, sheet, dst in [
+      ('recons/lgm/P2F-Recommended-SST-records_LGM_C.Brierley.xlsx', 'LGM',
+       'recons/lgm/P2F_recommended_sst_lgm.csv'),
+      ('recons/midHolocene/P2F-recommended-SST.midHolocene.xlsx', 'MH',
+       'recons/midHolocene/P2F_recommended_sst_midHolocene.csv')]:
+      pd.read_excel(src, sheet_name=sheet).to_csv(dst, index=False)
+  PY
+
+No columns are renamed or dropped in the dump - all of the normalising happens
+in Step 1. The anomaly used is the SST_Anomaly column, which is the core's
+annual SST minus the ERSSTv6 1870-1899 mean at its grid cell. Install openpyxl
+into my-cli-py if you would rather Step 1 read the .xlsx directly.
