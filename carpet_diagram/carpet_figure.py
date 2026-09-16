@@ -126,16 +126,22 @@ def add_group_means(df, labels=COMPOSITE_LABELS, keep_only=True):
     return pd.concat(frames, ignore_index=True), {k: members[k] for k in labels}
 
 
-def load_rmse_tables():
-    """Concatenate every rmse_long_<period>.csv into one tidy frame."""
+def load_rmse_tables(rmse_dir=None):
+    """Concatenate every rmse_long_<period>.csv into one tidy frame.
+
+    `rmse_dir` defaults to output/; pass a subdirectory to draw the same figure
+    from a subsetted table (see carpet_regional.py), which keeps those files out
+    of the glob that builds the headline figure.
+    """
+    rmse_dir = rmse_dir or OUT_DIR
     rows = []
-    for f in sorted(glob.glob(os.path.join(OUT_DIR, 'rmse_long_*.csv'))):
+    for f in sorted(glob.glob(os.path.join(rmse_dir, 'rmse_long_*.csv'))):
         period = re.match(r'rmse_long_(.+)\.csv', os.path.basename(f)).group(1)
         df = pd.read_csv(f)
         df['period'] = period
         rows.append(df)
     if not rows:
-        raise FileNotFoundError(f'no rmse_long_*.csv in {OUT_DIR}')
+        raise FileNotFoundError(f'no rmse_long_*.csv in {rmse_dir}')
     return pd.concat(rows, ignore_index=True)
 
 
@@ -161,8 +167,8 @@ def order_rows(df):
 
 
 def make_figure(out_name='carpet_diagram.png', labels=COMPOSITE_LABELS,
-                keep_only=True, title=None):
-    df = load_rmse_tables()
+                keep_only=True, title=None, rmse_dir=None, note=None):
+    df = load_rmse_tables(rmse_dir)
 
     df, members = add_group_means(df, labels=labels, keep_only=keep_only)
     composites = [c for c in COMPOSITE_LABELS if c in set(df.model)]
@@ -263,6 +269,8 @@ def make_figure(out_name='carpet_diagram.png', labels=COMPOSITE_LABELS,
     centre_txt = (f'the {reference} ensemble-mean RMSE (so {reference} is white by definition)'
                   if reference else 'the row-mean RMSE of the individual models')
     notes = [f'cell numbers are absolute RMSE (°C); colour is each column vs {centre_txt}']
+    if note:
+        notes.insert(0, note)
     if (npts.values[np.isfinite(npts.values)] < MIN_POINTS).any():
         notes.append(f'* fewer than {MIN_POINTS} proxy points — RMSE is noisy')
     fig.text(0.01, 0.01, '   '.join(notes), fontsize=7.5, color='#555555', ha='left')

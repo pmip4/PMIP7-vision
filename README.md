@@ -41,6 +41,11 @@ _I'm not so sure what wants to go in this section: ideas?_
 ![Figure 3: Benchmarking models' surface air temperature across multi-periods, created using the carpet_diagram code.](carpet_diagram/output/carpet_diagram.png)
 [Figure 3: Benchmarking models' surface air temperature across multi-periods, created using the carpet_diagram code.](carpet_diagram/output/carpet_diagram.png)
 
+* The same benchmarking can be cut to a single region — `carpet_diagram/carpet_regional.py` re-does the RMSE over only the reconstruction points inside a lat/lon box. The example below is NW Europe / the NE Atlantic (45–66.33°N, 30°W–15°E). Treat the starred rows with care: lgm Bartlein, lig127k Hoffman and midPliocene Foley-Dowsett fall to 3–4 points in that box, and lig127k Capron has none at all so its row drops out.
+
+![Figure 3b: The benchmarking of Figure 3 restricted to reconstructions in 45–66.33°N, 30°W–15°E, created using the carpet_regional code.](carpet_diagram/output/carpet_diagram_euroatlantic.png)
+[Figure 3b: The benchmarking of Figure 3 restricted to reconstructions in 45–66.33°N, 30°W–15°E, created using the carpet_regional code.](carpet_diagram/output/carpet_diagram_euroatlantic.png)
+
 * Talk about benchmarks and evaluation performed on other fields (e.g. ENSO in midH, salinity/density). Synthesise regional evaluations.
 
 ### Insights for future climate _(Gabrial Pontes)_
