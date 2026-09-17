@@ -41,10 +41,15 @@ _I'm not so sure what wants to go in this section: ideas?_
 ![Figure 3: Benchmarking models' surface air temperature across multi-periods, created using the carpet_diagram code.](carpet_diagram/output/carpet_diagram.png)
 [Figure 3: Benchmarking models' surface air temperature across multi-periods, created using the carpet_diagram code.](carpet_diagram/output/carpet_diagram.png)
 
-* The same benchmarking can be cut to a single region — `carpet_diagram/carpet_regional.py` re-does the RMSE over only the reconstruction points inside a lat/lon box. The example below is NW Europe / the NE Atlantic (45–66.33°N, 30°W–15°E). Treat the starred rows with care: lgm Bartlein, lgm P2F, lig127k Hoffman, midPliocene Foley-Dowsett and midHolocene P2F fall to 3–7 points in that box, and lig127k Capron has none at all so its row drops out.
+* The same benchmarking can be cut to a single region — `carpet_diagram/carpet_regional.py` re-does the statistics over only the reconstruction points inside a lat/lon box, or inside a named IPCC AR6 reference region (`--ar6 MED`). In these regional versions the cell numbers are the weighted mean **model** anomaly and the right-hand column is the same mean of the **reconstruction**, so the two can be read against each other; the colour is still each column's RMSE relative to the PMIP4 mean, as in Figure 3. The first example is NW Europe / the NE Atlantic (45–66.33°N, 30°W–15°E). Treat the starred rows with care: lgm Bartlein, lgm P2F, lig127k Hoffman, midPliocene Foley-Dowsett and midHolocene P2F fall to 3–7 points in that box, and lig127k Capron has none at all so its row drops out.
 
 ![Figure 3b: The benchmarking of Figure 3 restricted to reconstructions in 45–66.33°N, 30°W–15°E, created using the carpet_regional code.](carpet_diagram/output/carpet_diagram_euroatlantic.png)
 [Figure 3b: The benchmarking of Figure 3 restricted to reconstructions in 45–66.33°N, 30°W–15°E, created using the carpet_regional code.](carpet_diagram/output/carpet_diagram_euroatlantic.png)
+
+* The second example uses a standard region rather than a box: the IPCC AR6 reference region **MED** (Mediterranean, region 19 of [Iturbide et al. 2020](https://essd.copernicus.org/articles/12/2959/2020/), the set behind the AR6 WGI Atlas), which is the rectangle 10°W–40°E, 30–45°N. Note the models sit much closer to the reconstructions here than over NW Europe — at the LGM they cluster at −4 to −6.5°C against reconstructions of −5.5 (Annan), −6.0 (Bartlein) and −6.8°C (Osman), with Cleator the cold outlier at −9.8°C. The lig127k row rests on a single proxy point and should not be read as evidence.
+
+![Figure 3c: The benchmarking of Figure 3 restricted to reconstructions in the IPCC AR6 Mediterranean (MED) region, created using the carpet_regional code.](carpet_diagram/output/carpet_diagram_med.png)
+[Figure 3c: The benchmarking of Figure 3 restricted to reconstructions in the IPCC AR6 Mediterranean (MED) region, created using the carpet_regional code.](carpet_diagram/output/carpet_diagram_med.png)
 
 * Talk about benchmarks and evaluation performed on other fields (e.g. ENSO in midH, salinity/density). Synthesise regional evaluations.
 

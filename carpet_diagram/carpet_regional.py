@@ -2,8 +2,9 @@
 Regional variant of the carpet diagram.
 
 Same benchmarking as `carpet_figure.py`, but restricted to the reconstruction
-points inside a latitude/longitude box — by default 45–66.33 °N, 30 °W–15 °E
-(NW Europe and the NE Atlantic, the northern edge being the Arctic Circle).
+points inside a region — either a latitude/longitude box (the default: 45–66.33
+°N, 30 °W–15 °E, NW Europe and the NE Atlantic, the northern edge being the
+Arctic Circle) or a named IPCC AR6 reference region, e.g. `--ar6 MED`.
 
 Nothing needs re-running upstream: the notebooks already write
 `output/model_anom_at_recon_<period>.csv`, which holds every proxy point with
@@ -19,6 +20,7 @@ Run with the `my-cli-py` conda env, from the carpet_diagram/ directory:
 
     python carpet_regional.py                         # the default box
     python carpet_regional.py --lat 45 66.33 --lon -30 15 --name euroatlantic
+    python carpet_regional.py --ar6 MED               # an IPCC AR6 region
 """
 
 import argparse
@@ -28,6 +30,8 @@ import re
 
 import numpy as np
 import pandas as pd
+import regionmask
+import shapely
 
 import carpet_figure as cf
 
@@ -52,6 +56,49 @@ def fmt_bounds(lat, lon):
     return f'{lat[0]:g}–{ns(lat[1])}, {ew(lon[0])}–{ew(lon[1])}'
 
 
+class Region:
+    """A named selection of points: `inside(lat, lon)` returns a boolean array."""
+
+    def __init__(self, name, label, inside):
+        self.name = name
+        self.label = label
+        self.inside = inside
+
+
+def box_region(lat, lon, name):
+    """Points inside a plain latitude/longitude box, bounds inclusive."""
+    def inside(lat_v, lon_v):
+        return ((lat_v >= lat[0]) & (lat_v <= lat[1]) &
+                (lon_v >= lon[0]) & (lon_v <= lon[1]))
+
+    return Region(name, fmt_bounds(lat, lon), inside)
+
+
+def ar6_region(abbrev, name=None):
+    """Points inside an IPCC AR6 reference region, by its abbreviation.
+
+    The polygons come from `regionmask.defined_regions.ar6.all`, the 58 regions
+    of Iturbide et al. (2020) used by the AR6 WGI Atlas — the same source the
+    synthesis figure uses. `.all` rather than `.land`, so combined land-and-ocean
+    regions such as MED keep their marine part and the SST compilations are not
+    silently dropped. Longitudes there run −180–180, matching the proxy
+    convention of the point CSVs.
+    """
+    regions = regionmask.defined_regions.ar6.all
+    match = [r for r in regions if r.abbrev.upper() == abbrev.upper()]
+    if not match:
+        raise SystemExit(f'no AR6 region {abbrev!r}. Available: '
+                         + ', '.join(sorted(r.abbrev for r in regions)))
+    region = match[0]
+    poly = region.polygon
+
+    def inside(lat_v, lon_v):
+        return shapely.contains_xy(poly, np.asarray(lon_v), np.asarray(lat_v))
+
+    return Region(name or region.abbrev.lower(),
+                  f'IPCC AR6 {region.abbrev} ({region.name})', inside)
+
+
 def weighted_mean(values, weights):
     """Weighted mean over the finite entries; NaN if nothing is finite."""
     ok = np.isfinite(values) & np.isfinite(weights)
@@ -60,8 +107,8 @@ def weighted_mean(values, weights):
     return float(np.sum(weights[ok] * values[ok]) / np.sum(weights[ok]))
 
 
-def regional_rmse(path, lat, lon):
-    """Weighted RMSE, bias and mean anomaly per (model, compilation) in the box.
+def regional_rmse(path, region):
+    """Weighted RMSE, bias and mean anomaly per (model, compilation) in region.
 
     `rmse` and `bias` mirror Step 4 of the notebooks exactly — the same
     weight-weighted statistics over the points where both the sampled model
@@ -76,8 +123,7 @@ def regional_rmse(path, lat, lon):
     df = pd.read_csv(path)
     models = [c for c in df.columns if c not in META_COLS]
 
-    inside = (df.Latitude.between(*lat)) & (df.Longitude.between(*lon))
-    sub = df[inside]
+    sub = df[region.inside(df.Latitude.values, df.Longitude.values)]
 
     recon_mean = {comp: weighted_mean(g['recon_anom'].values, g['weight'].values)
                   for comp, g in sub.groupby('compilation')}
@@ -104,7 +150,7 @@ def regional_rmse(path, lat, lon):
     return pd.DataFrame(records), sorted(df.compilation.unique()), len(sub), len(df)
 
 
-def build_tables(region_dir, lat, lon):
+def build_tables(region_dir, region):
     """Write one rmse_long_<period>.csv per period into region_dir."""
     os.makedirs(region_dir, exist_ok=True)
     files = sorted(glob.glob(os.path.join(OUT_DIR, 'model_anom_at_recon_*.csv')))
@@ -113,20 +159,20 @@ def build_tables(region_dir, lat, lon):
                                 'run the notebooks first')
     for f in files:
         period = re.match(r'model_anom_at_recon_(.+)\.csv', os.path.basename(f)).group(1)
-        rmse_long, all_comps, n_in, n_all = regional_rmse(f, lat, lon)
+        rmse_long, all_comps, n_in, n_all = regional_rmse(f, region)
         counts = (rmse_long.groupby('compilation').n_points.max()
                   .sort_index().to_dict()) if len(rmse_long) else {}
-        # A compilation with no points in the box has nothing to benchmark
+        # A compilation with no points in the region has nothing to benchmark
         # against, so its row is dropped rather than drawn empty. Say so out
         # loud — a silently missing row is easy to misread as a missing period.
         empty = [c for c in all_comps if counts.get(c, 0) == 0]
         if empty:
-            print(f'  {period}: dropped (no points in box): ' + ', '.join(empty))
+            print(f'  {period}: dropped (no points in region): ' + ', '.join(empty))
             rmse_long = rmse_long[~rmse_long.compilation.isin(empty)]
 
         rmse_long.to_csv(os.path.join(region_dir, f'rmse_long_{period}.csv'), index=False)
         kept = {c: n for c, n in counts.items() if n}
-        print(f'  {period}: {n_in}/{n_all} points in box — ' +
+        print(f'  {period}: {n_in}/{n_all} points in region — ' +
               ', '.join(f'{c} {n}' for c, n in kept.items()))
 
 
@@ -138,18 +184,26 @@ def main():
     p.add_argument('--lon', nargs=2, type=float, metavar=('WEST', 'EAST'),
                    default=DEFAULT_REGION['lon'],
                    help='longitude bounds, °E (proxy convention, −180–180)')
-    p.add_argument('--name', default=DEFAULT_REGION['name'],
-                   help='slug used in the output directory and figure names')
+    p.add_argument('--ar6', metavar='ABBREV',
+                   help='select an IPCC AR6 reference region by abbreviation '
+                        '(e.g. MED) instead of a box; --lat/--lon are ignored')
+    p.add_argument('--name', default=None,
+                   help='slug used in the output directory and figure names '
+                        '(defaults to the AR6 abbreviation, or euroatlantic)')
     args = p.parse_args()
 
-    lat, lon = tuple(args.lat), tuple(args.lon)
-    region_dir = os.path.join(OUT_DIR, f'region_{args.name}')
-    label = fmt_bounds(lat, lon)
+    if args.ar6:
+        region = ar6_region(args.ar6, args.name)
+    else:
+        region = box_region(tuple(args.lat), tuple(args.lon),
+                            args.name or DEFAULT_REGION['name'])
+    region_dir = os.path.join(OUT_DIR, f'region_{region.name}')
 
-    print(f'Region {args.name}: {label}')
-    build_tables(region_dir, lat, lon)
+    print(f'Region {region.name}: {region.label}')
+    build_tables(region_dir, region)
 
-    note = (f'restricted to the {label} reconstruction points '
+    label = region.label
+    note = (f'restricted to the reconstruction points inside {label} '
             '(rows are the same compilations, subsetted — not re-fitted)')
     # The regional figure prints the mean anomaly rather than the RMSE: over a
     # single region the anomaly itself is the readable quantity, and the
@@ -158,9 +212,9 @@ def main():
     shared = dict(rmse_dir=region_dir, note=note, value_col='model_mean',
                   value_label='the weighted mean model anomaly (°C) over that row\'s '
                               'reconstruction points', recon_col=True)
-    cf.make_figure(out_name=f'carpet_diagram_{args.name}.png', **shared,
+    cf.make_figure(out_name=f'carpet_diagram_{region.name}.png', **shared,
                    title=f'Model–reconstruction temperature anomalies — {label}')
-    cf.make_figure(out_name=f'carpet_diagram_{args.name}_all_models.png',
+    cf.make_figure(out_name=f'carpet_diagram_{region.name}_all_models.png',
                    labels=['PMIP4'], keep_only=False, **shared,
                    title=f'Model–reconstruction temperature anomalies, all models — {label}')
 
