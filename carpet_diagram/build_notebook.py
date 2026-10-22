@@ -181,7 +181,7 @@ recon.head()"""
 
 LGM_STEP1_MD = """## Step 1 — Reconstruction compilations
 
-Five LGM (21 ka) compilations. Two are proxy compilations, with unit weights:
+Six LGM (21 ka) compilations. Three are proxy compilations, with unit weights:
 
 - **Bartlein** — the Bartlein et al. (2011) pollen-based mean-annual-temperature synthesis
   at 21 ka (`Bartlein_mat_21ka.csv`, the NOAA `mat_delta_21ka_ALL_grid_2x2.csv`), the 21 ka
@@ -194,6 +194,20 @@ Five LGM (21 ka) compilations. Two are proxy compilations, with unit weights:
   ERSSTv6 1870–1899 mean at its grid cell, so it is already an anomaly. These are SSTs
   compared against model `tas`, on the same footing as the lig127k and midPliocene
   marine rows.
+- **Jonkers** — Jonkers et al. (2023), Last Glacial Maximum seawater temperatures from
+  planktonic foraminifera assemblages (`LGM_foram_reconstruction.tab`, PANGAEA
+  doi:10.1594/PANGAEA.962957). Estimated with the Modern Analogue Technique against the
+  ForCenS core-top synthesis and World Ocean Atlas 1998, so this is a transfer-function
+  **proxy** reconstruction rather than a data assimilation product. 647 sites, no missing
+  values. The `T anomaly [°C]` column is already an anomaly — the estimate minus the World
+  Ocean Atlas climatology at the same site — so it needs no re-referencing.
+
+  Two things to keep in mind. The file is PANGAEA tab-delimited: ~663 lines of metadata
+  (citation, abstract, a per-core event list, parameter definitions) precede a line
+  containing just `*/`, and the column header follows it. We locate that marker rather
+  than hard-coding a line count, since it shifts between PANGAEA exports. And these are
+  seawater temperatures at **50 m depth**, not SST — so comparing them against model `tas`
+  is a longer reach than the SST rows above, which are already an approximation.
 
 The other three are near-global gridded data assimilation products, so each point gets a
 `cos(latitude)` weight for an area-fair RMSE:
@@ -306,7 +320,32 @@ p2f_pts = pd.DataFrame({
 p2f_pts['source_table'] = P2F_FILE
 p2f_pts['weight'] = 1.0                   # scattered sites: equal weight
 
-recon = pd.concat([bartlein, cleator, osman, annan, p2f_pts], ignore_index=True)
+
+# --- Jonkers: LGM foram transfer-function temperatures (scattered marine cores) ---
+# PANGAEA tab-delimited export: a long metadata header (citation, abstract, the
+# per-core event list, parameter definitions) ends at a line containing just
+# '*/', and the column header is the line after it. Find that marker rather than
+# hard-coding a line count, which shifts between PANGAEA exports.
+JONKERS_FILE = 'LGM_foram_reconstruction.tab'
+jonkers_path = os.path.join(RECON_DIR, JONKERS_FILE)
+with open(jonkers_path, encoding='utf-8') as fh:
+    header_lines = next(i for i, line in enumerate(fh) if line.strip() == '*/') + 1
+jon = pd.read_csv(jonkers_path, sep='\\t', skiprows=header_lines)
+
+# 'T anomaly [deg C]' - the estimate minus the World Ocean Atlas climatology at the
+# same site, so already the anomaly we want. Match on prefix: the published column
+# name carries a degree sign.
+anom_col = next(c for c in jon.columns if c.startswith('T anomaly'))
+jonkers = pd.DataFrame({
+    'compilation': 'Jonkers', 'reference': 'Jonkers et al. 2023', 'site': jon['Site'].astype(str),
+    'Proxy': 'foram assemblage (MAT), 50 m',
+    'Latitude': jon['Latitude'].astype(float), 'Longitude': jon['Longitude'].astype(float),
+    'Anom': jon[anom_col].astype(float),
+})
+jonkers['source_table'] = JONKERS_FILE
+jonkers['weight'] = 1.0                   # scattered sites: equal weight
+
+recon = pd.concat([bartlein, cleator, osman, annan, p2f_pts, jonkers], ignore_index=True)
 recon = recon.dropna(subset=['Latitude', 'Longitude', 'Anom'])
 
 print(recon.groupby('compilation').size())
@@ -382,7 +421,7 @@ PERIODS = [
     dict(
         experiment='lgm',
         long_name='Last Glacial Maximum (21 ka)',
-        compilations='Bartlein 21 ka (Bartlein et al. 2011), Cleator (Cleator et al. 2020),\n                      Osman (LGMR; Osman et al. 2021) and Annan (Annan et al. 2022)',
+        compilations='Bartlein 21 ka (Bartlein et al. 2011), P2F, Jonkers (Jonkers et al.\n                      2023), Cleator (Cleator et al. 2020), Osman (LGMR; Osman et al.\n                      2021) and Annan (Annan et al. 2022)',
         step1_md=LGM_STEP1_MD,
         step1_code=LGM_STEP1_CODE,
     ),

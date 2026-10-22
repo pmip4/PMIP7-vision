@@ -29,14 +29,26 @@ OUT_DIR = os.path.join(SCRIPT_DIR, 'output')
 def better_worse_cmap():
     """Diverging colormap for RMSE relative to the reference column.
 
-    Better than the reference (lower RMSE) → green; worse → red; the reference
+    Better than the reference (lower RMSE) → blue; worse → orange; the reference
     itself sits on an exactly white centre. Each half is one sequential ramp
-    (Greens, Reds) with its inner end faded to pure white, so the two meet at
+    (Blues, Oranges) with its inner end faded to pure white, so the two meet at
     white rather than at the pale seam the raw colormaps would give.
+
+    Blue/orange rather than the obvious green/red because green/red is exactly
+    the pair red-green colour blindness collapses. Simulating dichromatic vision
+    (Viénot/Brettel) on the two schemes, the distance between the better and
+    worse cell at matched distance from the centre is:
+
+                        normal   deuteranope
+        Greens/Reds      0.487      0.115      <- 76% of the signal lost
+        Blues/Oranges    0.618      0.482
+
+    measured at the saturated ends (±0.50), i.e. precisely where the strongest
+    results sit. Blue/orange also stays separable for protanopes (0.432).
     """
     n = 128
-    better = plt.get_cmap('Greens')(np.linspace(1.0, 0.0, n))  # dark green → pale (best → centre)
-    worse = plt.get_cmap('Reds')(np.linspace(0.0, 1.0, n))     # pale → dark red (centre → worst)
+    better = plt.get_cmap('Blues')(np.linspace(1.0, 0.0, n))   # dark blue → pale (best → centre)
+    worse = plt.get_cmap('Oranges')(np.linspace(0.0, 1.0, n))  # pale → dark orange (centre → worst)
 
     white = np.array([1.0, 1.0, 1.0, 1.0])
     k = n // 5                                   # fade the innermost fifth to white
@@ -57,10 +69,11 @@ ROW_GROUPS = [
      ('lig127k', 'Hoffman'),
      ('lig127k', 'Capron'),
      ('midPliocene-eoi400', 'Foley-Dowsett')],
-    # The P2F recommended-SST records, kept in their own group below the other
-    # proxy compilations and above the data assimilation products.
+    # Post-2021 reconstruction datasets, between the older proxy compilations
+    # above and the data assimilation products below.
     [('midHolocene', 'P2F'),
-     ('lgm', 'P2F')],
+     ('lgm', 'P2F'),
+     ('lgm', 'Jonkers')],
     # Cleator is a data assimilation product too (it assimilates the Bartlein
     # 21 ka pollen synthesis above into PMIP3 output), so it belongs here.
     [('midHolocene', 'Erb'),
