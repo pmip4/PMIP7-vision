@@ -35,9 +35,10 @@ do fi = 0, dimsizes(files)-1
   file_parts = str_split(files(fi),"/")
   expt=file_parts(0)
   filename=file_parts(1)
-  name_parts = str_split(filename,".")
+  ;split on ".cvdp_data." rather than "." - some obs names carry dots (HadCRUT5.0.2)
+  name_parts = str_split(str_sub_str(filename,".cvdp_data.","|"),"|")
   name_strs0 = str_split(name_parts(0),"_")
-  name_strs2 = str_split(name_parts(2),"-")
+  name_strs2 = str_split(str_sub_str(name_parts(1),".nc",""),"-")
   variables(0)=name_strs0(0) ;model
   if dimsizes(name_strs0).eq.1 then
     variables(1)="observations" ;experiment

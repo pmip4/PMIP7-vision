@@ -23,11 +23,39 @@ Last Glacial Maximum
   from https://www.ncei.noaa.gov/pub/data/paleo/pollen/recons/bartlein2010/mat_delta_21ka_ALL_grid_2x2.csv (checked: the 06ka file from the same directory is identical to
   Bartlein_mat.csv on all 635 shared cells, so it is the same source). 98 cells, anomaly column mat_anm_mean, scattered so unit weights. Note the two Alaskan cells at 67N give
   +13.4 and +8.1 degC, the known anomalously-warm Beringian pollen reconstructions - they are kept, not screened.
+* LGM_foram_reconstruction.tab is Jonkers, Laepple, Rillo, Shi, Dolman, Lohmann, Paul, Mix & Kucera (2023), "Last Glacial Maximum seawater temperature estimates based on planktonic
+  foraminifera", PANGAEA, https://doi.org/10.1594/PANGAEA.962957 (bundled publication https://doi.org/10.1594/PANGAEA.962958). Temperatures are estimated with the Modern Analogue
+  Technique against the ForCenS core-top synthesis and World Ocean Atlas 1998, taking the weighted average of the 10 closest analogues - so this is a transfer-function PROXY
+  reconstruction, not a data assimilation product. In the carpet diagram it sits in the middle group, below the first double rule, with the other post-2021 reconstruction datasets
+  (the two P2F rows) rather than with the older proxy compilations above or the DA products below. 647 sites, no missing values, scattered so unit weights.
+  The anomaly column is "T anomaly [degC]", already the estimate minus the World Ocean Atlas climatology at the same site, so it needs no re-referencing.
+  Two things to watch. (1) PANGAEA tab-delimited format: ~663 lines of metadata - citation, abstract, a per-core event list, parameter definitions - precede a line containing just
+  */, and the tab-separated column header is the line after that. Step 1 locates the */ marker rather than hard-coding a line count, because the header length changes between
+  PANGAEA exports. (2) These are seawater temperatures at 50 m depth, annual mean - NOT sea-surface temperature, and not surface air temperature. The carpet diagram compares them
+  against model tas, which is a longer reach than the SST rows (P2F, Hoffman, Foley-Dowsett) that are already an approximation. Worth remembering before reading much into the row.
+  Duplicated locations: 647 rows but only 640 distinct coordinate pairs and 639 distinct Events. Three patterns, all kept as published rather than de-duplicated.
+  (a) Sub-sample splits of one core, 4 pairs, flagged by a parenthesised letter on Site - R657 (S)/(W), RC09-150 (P)/(W), V28-342 (P)/(W), RC12-113 (A)/(M). These 8 rows are the
+      only ones in the file carrying such a suffix and they form exactly 4 pairs. R657's two rows are numerically identical; the others differ by 0.15-0.89 degC.
+  (b) Two genuinely different cores at one published position: V29-172 and V29-173, distinct Vema cores (water depths -3257 m and -3278 m, recoveries 5.03 m and 0.57 m) both
+      listed at 33.700N 29.383W. Not an error, just a coarse position.
+  (c) The same core entered twice from different source compilations: V17-165 (LGM_0069, 4 samples, +/-0.80 vs LGM_0413, 1 sample, +/-1.60), RC11-86 (LGM_0170, 2 samples vs
+      LGM_0510, 1 sample), GIK12392-1/M12392 (the header confirms these are one core, "GIK12392-1 (M12392-1)"; coordinates differ by 0.005 deg, anomalies -4.15 vs -5.28 degC),
+      and RC14-39.
+  KNOWN ERROR, not corrected: RC14-39 appears at latitude -5.857 (LGM_0291) and +5.850 (LGM_0520) on the same longitude. The file's own event header gives LATITUDE: -5.857000,
+  so LGM_0520 has a flipped sign and is placed 11.7 deg away in the wrong hemisphere. Same class of problem as the P2F GeoB7112-5 core, which Step 1 does fix. It is left alone
+  here because the cost is negligible - see below - but fix it if this row ever carries weight.
+  Impact of all of the above: de-duplicating to 640 points moves every model's Jonkers RMSE by at most 0.031 degC, and the sign-flipped point is 1 of 647 and sits in the Indian
+  Ocean, outside both current region boxes. So the duplicates are harmless at present; they would matter more in a regional subset that happened to contain them.
 * The Cleator et al (2020) reconstruction is a data assimilation product, NOT a proxy compilation - checked, and its own preamble says so: "made by combining pollen based
   reconstructions (from Bartlein et al. 2011) and averaged outputs of LGM simulations from ... PMIP ... under a variational data assimilation technique". The Reading record
   holds only LGM_reconstruction.csv and a README, with no proxy-only file, and the data sit on a regular 2x2 grid rather than at sites. So its proxy input is the Bartlein 21ka
   file above, which means the two rows are not independent. It was downloaded from https://researchdata.reading.ac.uk/244/1/LGM_reconstruction.csv and only the MAT column is
   relevant. In the carpet diagram it sits below the double rule with the other DA products.
+* Annan_etal22.SAT.mean.lgm.nc is the data assimilation product of Annan, Hargreaves & Mauritsen (2022, Clim Past 18, 1883, https://cp.copernicus.org/articles/18/1883/2022/), which
+  blends proxies with a 19-member PMIP prior using an ensemble Kalman filter. The SAT.mean field is already an LGM anomaly and needs no re-referencing: its area-weighted global mean
+  is -4.46 degC, against the -4.5 +/- 0.9 degC the paper reports. Two things to watch if you touch this file - the coordinates are called latitude/longitude rather than lat/lon, and the
+  longitude axis is rolled (it runs 181..359 then 1..179 rather than ascending). The roll is harmless as used, because Step 1 flattens the grid to points so each value keeps its own
+  longitude and the field is never interpolated; it would matter if anything tried to interpolate it. 2x2 degree grid, 16200 points, all finite, cos(latitude) weights.
 * The Osman file is the last Glacial Maximum Reanalysis from Osman et al (2020). It is averaged between the 20900 and 21100 bins. Downloaded from https://www.ncei.noaa.gov/pub/data/paleo/reconstructions/osman2021/LGMR_SAT_climo.nc
 * P2F-Recommended-SST-records_LGM_C.Brierley.xls is the upcoming dataset from the the Past 2 Future project. It contains ocean temperature reconstructions. It is a work in progress and is compiled by Anna Cutmore (Durham). Only the recommded values should be used. 
 
@@ -46,3 +74,27 @@ midPliocene-eoi400
   The carpet diagram reads the _changes file. It is a gridded 180x360 field (the 3 southernmost and 3 northernmost latitude rows are all fill and get dropped, leaving
   62640 points), flattened to points with cos(latitude) weights. Global mean warming is +5.3 degC.
 
+
+P2F recommended SST records (midHolocene and lgm rows)
+------------------------------------------------------
+recons/midHolocene/P2F-recommended-SST.midHolocene.xlsx and
+recons/lgm/P2F-Recommended-SST-records_LGM_C.Brierley.xlsx are the supplied
+workbooks. Step 1 reads a verbatim CSV dump of each rather than the .xlsx
+itself, because the my-cli-py environment has no openpyxl. The dumps are
+P2F_recommended_sst_midHolocene.csv and P2F_recommended_sst_lgm.csv, made with
+the esmvaltool environment (which does have openpyxl):
+
+  python - <<'PY'
+  import pandas as pd
+  for src, sheet, dst in [
+      ('recons/lgm/P2F-Recommended-SST-records_LGM_C.Brierley.xlsx', 'LGM',
+       'recons/lgm/P2F_recommended_sst_lgm.csv'),
+      ('recons/midHolocene/P2F-recommended-SST.midHolocene.xlsx', 'MH',
+       'recons/midHolocene/P2F_recommended_sst_midHolocene.csv')]:
+      pd.read_excel(src, sheet_name=sheet).to_csv(dst, index=False)
+  PY
+
+No columns are renamed or dropped in the dump - all of the normalising happens
+in Step 1. The anomaly used is the SST_Anomaly column, which is the core's
+annual SST minus the ERSSTv6 1870-1899 mean at its grid cell. Install openpyxl
+into my-cli-py if you would rather Step 1 read the .xlsx directly.

@@ -65,8 +65,9 @@ recon.head()"""
 
 MIDHOL_STEP1_MD = """## Step 1 — Reconstruction compilations
 
-Four midHolocene (6 ka) compilations. The first three are scattered proxy sites, each
-with unit weight per point:
+Four midHolocene (6 ka) compilations. The first two are scattered proxy sites, each in
+its own CSV with a plain header row and unit weight per point:
+
 
 - **Bartlein** — the Bartlein et al. (2011) pollen-based mean-annual-temperature (MAT)
   anomalies; the annual anomaly is the `mat_anm_mean` column of a plain-header CSV.
@@ -92,7 +93,16 @@ The fourth is a gridded data assimilation product, flattened to points with a
   comparable with a model `midHolocene − piControl` anomaly. We therefore use
   `Erbetal2022_6ka_minus_0-1ka_anom.nc`, the 5.5–6.5 ka mean minus the 0–1 ka mean; the
   shared 3–5 ka baseline cancels in the difference, leaving a 6 ka − (0–1 ka) anomaly on
-  the same footing as Osman's LGM field."""
+  the same footing as Osman's LGM field.
+
+The fourth is a scattered-site marine compilation with unit weights:
+
+- **P2F** — the recommended annual sea-surface-temperature records assembled for the
+  Past2Future synthesis (`P2F_recommended_sst_midHolocene.csv`, a verbatim CSV dump of
+  the supplied workbook). The `SST_Anomaly` column is each core's annual SST minus the
+  ERSSTv6 1870–1899 mean at its grid cell, so it is already an anomaly. These are SSTs
+  compared against model `tas`, on the same footing as the lig127k and midPliocene
+  marine rows."""
 
 MIDHOL_STEP1_CODE = """# (compilation, filename, anomaly column, reference label, proxy label)
 recon_specs = [
@@ -148,6 +158,39 @@ erb['source_table'] = ERB_FILE
 erb['weight'] = np.cos(np.deg2rad(erb['Latitude']))
 frames.append(erb)
 
+# --- P2F: the recommended annual SST records (scattered marine cores) ---
+# A verbatim CSV dump of the P2F workbook (see recons/README for the command).
+# `SST_Anomaly` is the core's annual SST minus the ERSSTv6 1870-1899 mean at its
+# grid cell, so it is already the anomaly we want and needs no re-referencing.
+# These are SSTs benchmarked against model `tas`, exactly as the lig127k Hoffman
+# and Capron and the midPliocene Foley-Dowsett rows already are.
+P2F_FILE = 'P2F_recommended_sst_midHolocene.csv'
+p2f = pd.read_csv(os.path.join(RECON_DIR, P2F_FILE))
+p2f.columns = [c.strip() for c in p2f.columns]
+
+# Coordinate check: the site `Latitude` should agree with the spreadsheet's own
+# ERSST grid latitude. Where the two disagree in sign the site column has a sign
+# typo (e.g. GeoB7112-5, a Chile-margin core listed at +24 deg N), so take the
+# hemisphere from the ERSST cell. Rows within 2 deg of the equator are skipped:
+# there a sign difference is just rounding across it.
+flip = (np.sign(p2f['Latitude']) != np.sign(p2f['ERSST Lat'])) & (p2f['ERSST Lat'].abs() > 2)
+if flip.any():
+    print('P2F: latitude sign taken from the ERSST cell for',
+          ', '.join(p2f.loc[flip, 'Core'].astype(str)))
+    p2f.loc[flip, 'Latitude'] = -p2f.loc[flip, 'Latitude']
+
+p2f_pts = pd.DataFrame({
+    'compilation': 'P2F', 'reference': 'P2F recommended SST records',
+    'site': p2f['Core'].astype(str),
+    'Proxy': p2f['Proxy/Proxies'].astype(str),
+    'Latitude': p2f['Latitude'].astype(float),
+    'Longitude': p2f['Longitude'].astype(float),
+    'Anom': p2f['SST_Anomaly'].astype(float),
+})
+p2f_pts['source_table'] = P2F_FILE
+p2f_pts['weight'] = 1.0                   # scattered sites: equal weight
+frames.append(p2f_pts)
+
 recon = pd.concat(frames, ignore_index=True)
 recon = recon.dropna(subset=['Latitude', 'Longitude', 'Anom'])
 
@@ -160,20 +203,38 @@ recon.head()"""
 
 LGM_STEP1_MD = """## Step 1 — Reconstruction compilations
 
-Four LGM (21 ka) compilations. Two are scattered proxy sites, with unit weights:
+Six LGM (21 ka) compilations. Three are proxy compilations, with unit weights:
+
 
 - **Bartlein** — the Bartlein et al. (2011) pollen-based mean-annual-temperature synthesis
   at 21 ka (`Bartlein_mat_21ka.csv`, the NOAA `mat_delta_21ka_ALL_grid_2x2.csv`), the 21 ka
   counterpart of the file used for the midHolocene row. 98 cells with an anomaly, in the
   `mat_anm_mean` column. Note this is the proxy compilation that Cleator assimilated, so
   the Cleator row below is not independent of it.
-- **P2F** — the Past 2 Future ocean-temperature compilation (Cutmore et al., Durham,
-  in prep; work in progress), `P2F-Recommended-SST-records_LGM_C.Brierley.xlsx`. Only rows
-  whose `Recommendation` column reads exactly `Recommend` are kept; the anomaly is
-  `Annual SST` minus the site's `ERSSTv6 mean annual SST (1870-1899)` modern climatology.
+- **P2F** — the recommended annual sea-surface-temperature records assembled for the
+  Past2Future synthesis (`P2F_recommended_sst_lgm.csv`, a verbatim CSV dump of the
+  supplied workbook). The `SST_Anomaly` column is each core's annual SST minus the
+  ERSSTv6 1870–1899 mean at its grid cell, so it is already an anomaly. These are SSTs
+  compared against model `tas`, on the same footing as the lig127k and midPliocene
+  marine rows.
+- **Jonkers** — Jonkers et al. (2023), Last Glacial Maximum seawater temperatures from
+  planktonic foraminifera assemblages (`LGM_foram_reconstruction.tab`, PANGAEA
+  doi:10.1594/PANGAEA.962957). Estimated with the Modern Analogue Technique against the
+  ForCenS core-top synthesis and World Ocean Atlas 1998, so this is a transfer-function
+  **proxy** reconstruction rather than a data assimilation product. 647 sites, no missing
+  values. The `T anomaly [°C]` column is already an anomaly — the estimate minus the World
+  Ocean Atlas climatology at the same site — so it needs no re-referencing.
 
-The other two are near-global gridded products, so each point gets a `cos(latitude)`
-weight for an area-fair RMSE:
+
+  Two things to keep in mind. The file is PANGAEA tab-delimited: ~663 lines of metadata
+  (citation, abstract, a per-core event list, parameter definitions) precede a line
+  containing just `*/`, and the column header follows it. We locate that marker rather
+  than hard-coding a line count, since it shifts between PANGAEA exports. And these are
+  seawater temperatures at **50 m depth**, not SST — so comparing them against model `tas`
+  is a longer reach than the SST rows above, which are already an approximation.
+
+The other three are near-global gridded data assimilation products, so each point gets a
+`cos(latitude)` weight for an area-fair RMSE:
 
 - **Cleator** — the Cleator et al. (2020) vegetation-model-inversion **data assimilation**
   product (its own metadata: "made by combining pollen based reconstructions (from Bartlein
@@ -182,7 +243,14 @@ weight for an area-fair RMSE:
   (line 77); the only relevant field is `MAT` (mean-annual-temperature anomaly, °C).
 - **Osman** — the Last Glacial Maximum Reanalysis (Osman et al. 2021), the ensemble-mean
   `sat` field from `Osman_LGMR_21ka_SAT_anom_climo.nc`, already differenced to a 21 ka −
-  (0–1 ka) anomaly. The 96×144 grid is flattened to points, dropping fill values."""
+  (0–1 ka) anomaly. The 96×144 grid is flattened to points, dropping fill values.
+- **Annan** — Annan et al. (2022), an ensemble Kalman filter blending proxies with a
+  19-member PMIP prior. The `SAT.mean` field of `Annan_etal22.SAT.mean.lgm.nc` is already
+  an LGM anomaly: its area-weighted global mean is −4.46 °C, matching the −4.5 ± 0.9 °C
+  the paper reports. Two quirks — the coordinates are named `latitude`/`longitude` rather
+  than `lat`/`lon`, and the longitude axis is rolled (it runs 181…359 then 1…179 rather
+  than ascending). The roll is harmless here because Step 1 flattens the grid to points,
+  each carrying its own longitude, rather than interpolating the field."""
 
 LGM_STEP1_CODE = """# --- Bartlein: the 21 ka pollen MAT synthesis (scattered 2x2 cells) ---
 bar = pd.read_csv(os.path.join(RECON_DIR, 'Bartlein_mat_21ka.csv'))
@@ -237,11 +305,86 @@ osman = pd.DataFrame({
 })
 osman['source_table'] = 'Osman_LGMR_21ka_SAT_anom_climo.nc'
 
-for gridded in (cleator, osman):
+# --- Annan: flatten the gridded EnKF SAT anomaly field to points ---
+# Coordinates here are 'latitude'/'longitude', and the longitude axis is rolled
+# (181..359 then 1..179). That does not matter: we flatten to points, so every
+# value keeps its own longitude and no interpolation of this field takes place.
+ANNAN_FILE = 'Annan_etal22.SAT.mean.lgm.nc'
+ads = xr.open_dataset(os.path.join(RECON_DIR, ANNAN_FILE), decode_times=False)
+asat = ads['SAT.mean'].where(np.abs(ads['SAT.mean']) < 1e30)
+alon2d, alat2d = np.meshgrid(asat['longitude'].values, asat['latitude'].values)
+annan = pd.DataFrame({
+    'compilation': 'Annan', 'reference': 'Annan et al. 2022', 'site': np.nan,
+    'Proxy': 'EnKF SAT (assim.)',
+    'Latitude': alat2d.ravel().astype(float), 'Longitude': alon2d.ravel().astype(float),
+    'Anom': asat.values.ravel().astype(float),
+})
+annan['source_table'] = ANNAN_FILE
+
+for gridded in (cleator, osman, annan):
     # Regular lat/lon grids: cos-latitude weight makes the RMSE area-fair.
     gridded['weight'] = np.cos(np.deg2rad(gridded['Latitude']))
 
-recon = pd.concat([bartlein, p2f_df, cleator, osman], ignore_index=True)
+
+# --- P2F: the recommended annual SST records (scattered marine cores) ---
+# A verbatim CSV dump of the P2F workbook (see recons/README for the command).
+# `SST_Anomaly` is the core's annual SST minus the ERSSTv6 1870-1899 mean at its
+# grid cell, so it is already the anomaly we want and needs no re-referencing.
+# These are SSTs benchmarked against model `tas`, exactly as the lig127k Hoffman
+# and Capron and the midPliocene Foley-Dowsett rows already are.
+P2F_FILE = 'P2F_recommended_sst_lgm.csv'
+p2f = pd.read_csv(os.path.join(RECON_DIR, P2F_FILE))
+p2f.columns = [c.strip() for c in p2f.columns]
+
+# Coordinate check: the site `Latitude` should agree with the spreadsheet's own
+# ERSST grid latitude. Where the two disagree in sign the site column has a sign
+# typo (e.g. GeoB7112-5, a Chile-margin core listed at +24 deg N), so take the
+# hemisphere from the ERSST cell. Rows within 2 deg of the equator are skipped:
+# there a sign difference is just rounding across it.
+flip = (np.sign(p2f['Latitude']) != np.sign(p2f['ERSST Lat'])) & (p2f['ERSST Lat'].abs() > 2)
+if flip.any():
+    print('P2F: latitude sign taken from the ERSST cell for',
+          ', '.join(p2f.loc[flip, 'Core'].astype(str)))
+    p2f.loc[flip, 'Latitude'] = -p2f.loc[flip, 'Latitude']
+
+p2f_pts = pd.DataFrame({
+    'compilation': 'P2F', 'reference': 'P2F recommended SST records',
+    'site': p2f['Core'].astype(str),
+    'Proxy': p2f['Proxy/Proxies'].astype(str),
+    'Latitude': p2f['Latitude'].astype(float),
+    'Longitude': p2f['Longitude'].astype(float),
+    'Anom': p2f['SST_Anomaly'].astype(float),
+})
+p2f_pts['source_table'] = P2F_FILE
+p2f_pts['weight'] = 1.0                   # scattered sites: equal weight
+
+
+# --- Jonkers: LGM foram transfer-function temperatures (scattered marine cores) ---
+# PANGAEA tab-delimited export: a long metadata header (citation, abstract, the
+# per-core event list, parameter definitions) ends at a line containing just
+# '*/', and the column header is the line after it. Find that marker rather than
+# hard-coding a line count, which shifts between PANGAEA exports.
+JONKERS_FILE = 'LGM_foram_reconstruction.tab'
+jonkers_path = os.path.join(RECON_DIR, JONKERS_FILE)
+with open(jonkers_path, encoding='utf-8') as fh:
+    header_lines = next(i for i, line in enumerate(fh) if line.strip() == '*/') + 1
+jon = pd.read_csv(jonkers_path, sep='\\t', skiprows=header_lines)
+
+# 'T anomaly [deg C]' - the estimate minus the World Ocean Atlas climatology at the
+# same site, so already the anomaly we want. Match on prefix: the published column
+# name carries a degree sign.
+anom_col = next(c for c in jon.columns if c.startswith('T anomaly'))
+jonkers = pd.DataFrame({
+    'compilation': 'Jonkers', 'reference': 'Jonkers et al. 2023', 'site': jon['Site'].astype(str),
+    'Proxy': 'foram assemblage (MAT), 50 m',
+    'Latitude': jon['Latitude'].astype(float), 'Longitude': jon['Longitude'].astype(float),
+    'Anom': jon[anom_col].astype(float),
+})
+jonkers['source_table'] = JONKERS_FILE
+jonkers['weight'] = 1.0                   # scattered sites: equal weight
+
+recon = pd.concat([bartlein, cleator, osman, annan, p2f_pts, jonkers], ignore_index=True)
+
 recon = recon.dropna(subset=['Latitude', 'Longitude', 'Anom'])
 
 print(recon.groupby('compilation').size())
@@ -317,7 +460,8 @@ PERIODS = [
     dict(
         experiment='lgm',
         long_name='Last Glacial Maximum (21 ka)',
-        compilations='Bartlein 21 ka (Bartlein et al. 2011), P2F (Past 2 Future, in prep),\n                      Cleator (Cleator et al. 2020) and Osman (LGMR; Osman et al. 2021)',
+        compilations='Bartlein 21 ka (Bartlein et al. 2011), P2F, Jonkers (Jonkers et al.\n                      2023), Cleator (Cleator et al. 2020), Osman (LGMR; Osman et al.\n                      2021) and Annan (Annan et al. 2022)',
+
         step1_md=LGM_STEP1_MD,
         step1_code=LGM_STEP1_CODE,
     ),

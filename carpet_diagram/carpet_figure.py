@@ -29,14 +29,27 @@ OUT_DIR = os.path.join(SCRIPT_DIR, 'output')
 def better_worse_cmap():
     """Diverging colormap for RMSE relative to the reference column.
 
-    Worse than the reference → warm YlOrRd (white → yellow → red); better → cool
-    BuPu (white → blue → purple). The inner end of each ramp is faded to pure
-    white so the reference value sits on an exactly white centre, rather than on
-    the pale-yellow/pale-blue seam the two colormaps would otherwise meet at.
+    Better than the reference (lower RMSE) → blue; worse → orange; the reference
+    itself sits on an exactly white centre. Each half is one sequential ramp
+    (Blues, Oranges) with its inner end faded to pure white, so the two meet at
+    white rather than at the pale seam the raw colormaps would give.
+
+    Blue/orange rather than the obvious green/red because green/red is exactly
+    the pair red-green colour blindness collapses. Simulating dichromatic vision
+    (Viénot/Brettel) on the two schemes, the distance between the better and
+    worse cell at matched distance from the centre is:
+
+                        normal   deuteranope
+        Greens/Reds      0.487      0.115      <- 76% of the signal lost
+        Blues/Oranges    0.618      0.482
+
+    measured at the saturated ends (±0.50), i.e. precisely where the strongest
+    results sit. Blue/orange also stays separable for protanopes (0.432).
     """
     n = 128
-    better = plt.get_cmap('BuPu')(np.linspace(1.0, 0.0, n))    # purple → pale (best → centre)
-    worse = plt.get_cmap('YlOrRd')(np.linspace(0.0, 1.0, n))   # pale → red (centre → worst)
+    better = plt.get_cmap('Blues')(np.linspace(1.0, 0.0, n))   # dark blue → pale (best → centre)
+    worse = plt.get_cmap('Oranges')(np.linspace(0.0, 1.0, n))  # pale → dark orange (centre → worst)
+
 
     white = np.array([1.0, 1.0, 1.0, 1.0])
     k = n // 5                                   # fade the innermost fifth to white
@@ -58,16 +71,18 @@ ROW_GROUPS = [
      ('lig127k', 'Hoffman'),
      ('lig127k', 'Capron'),
      ('midPliocene-eoi400', 'Foley-Dowsett')],
-    # Past 2 Future (Cutmore et al., Durham; in prep) ocean-temperature
-    # compilation — a proxy compilation, but kept in its own group below the
-    # established rows while it is still work in progress.
+    # Post-2021 reconstruction datasets, between the older proxy compilations
+    # above and the data assimilation products below.
     [('midHolocene', 'P2F'),
-     ('lgm', 'P2F')],
+     ('lgm', 'P2F'),
+     ('lgm', 'Jonkers')],
+
     # Cleator is a data assimilation product too (it assimilates the Bartlein
     # 21 ka pollen synthesis above into PMIP3 output), so it belongs here.
     [('midHolocene', 'Erb'),
      ('lgm', 'Cleator'),
      ('lgm', 'Osman'),
+     ('lgm', 'Annan'),
      ('midPliocene-eoi400', 'Tierney')],
 ]
 
@@ -119,28 +134,37 @@ def add_group_means(df, labels=COMPOSITE_LABELS, keep_only=True):
     """
     members = composite_membership(df)
     frames = [df[df.model.isin(KEEP_MODELS)].copy() if keep_only else df.copy()]
+    # Every per-model value column is averaged the same way; `model_mean` (the
+    # regional figure's annotation) rides along with `rmse` when it is present.
+    value_cols = [c for c in ('rmse', 'model_mean', 'bias') if c in df.columns]
     for label in labels:
         sub = df[df.model.isin(members[label])]
         if sub.empty:
             continue
-        agg = (sub.groupby(['period', 'compilation'])
-                  .agg(rmse=('rmse', 'mean'), n_points=('n_points', 'median'))
-                  .reset_index())
+        agg = {c: (c, 'mean') for c in value_cols}
+        agg['n_points'] = ('n_points', 'median')
+        agg = sub.groupby(['period', 'compilation']).agg(**agg).reset_index()
         agg['model'] = label
         frames.append(agg)
     return pd.concat(frames, ignore_index=True), {k: members[k] for k in labels}
 
 
-def load_rmse_tables():
-    """Concatenate every rmse_long_<period>.csv into one tidy frame."""
+def load_rmse_tables(rmse_dir=None):
+    """Concatenate every rmse_long_<period>.csv into one tidy frame.
+
+    `rmse_dir` defaults to output/; pass a subdirectory to draw the same figure
+    from a subsetted table (see carpet_regional.py), which keeps those files out
+    of the glob that builds the headline figure.
+    """
+    rmse_dir = rmse_dir or OUT_DIR
     rows = []
-    for f in sorted(glob.glob(os.path.join(OUT_DIR, 'rmse_long_*.csv'))):
+    for f in sorted(glob.glob(os.path.join(rmse_dir, 'rmse_long_*.csv'))):
         period = re.match(r'rmse_long_(.+)\.csv', os.path.basename(f)).group(1)
         df = pd.read_csv(f)
         df['period'] = period
         rows.append(df)
     if not rows:
-        raise FileNotFoundError(f'no rmse_long_*.csv in {OUT_DIR}')
+        raise FileNotFoundError(f'no rmse_long_*.csv in {rmse_dir}')
     return pd.concat(rows, ignore_index=True)
 
 
@@ -166,8 +190,25 @@ def order_rows(df):
 
 
 def make_figure(out_name='carpet_diagram.png', labels=COMPOSITE_LABELS,
-                keep_only=True, title=None):
-    df = load_rmse_tables()
+                keep_only=True, title=None, rmse_dir=None, note=None,
+                value_col='rmse', value_label=None, recon_col=False):
+    """Draw the carpet diagram.
+
+    `value_col` chooses what the printed cell numbers are; the colour is always
+    the RMSE relative to the reference column, whatever is printed. The regional
+    figure prints `model_mean` (the weighted mean model anomaly over that row's
+    reconstruction points) instead of the RMSE. `recon_col` adds a column at the
+    right-hand edge holding the matching weighted mean of the reconstructions,
+    which is a property of the row rather than of any model.
+    """
+    df = load_rmse_tables(rmse_dir)
+    if value_col not in df.columns:
+        raise KeyError(f'{value_col!r} is not a column of the rmse_long tables '
+                       f'(have: {", ".join(df.columns)})')
+    recon_by_row = (df.groupby(['period', 'compilation'])['recon_mean'].first()
+                    if recon_col else None)
+    if recon_col and recon_by_row is None:
+        raise KeyError('recon_col=True needs a recon_mean column')
 
     df, members = add_group_means(df, labels=labels, keep_only=keep_only)
     composites = [c for c in COMPOSITE_LABELS if c in set(df.model)]
@@ -176,12 +217,15 @@ def make_figure(out_name='carpet_diagram.png', labels=COMPOSITE_LABELS,
 
     rmse = df.pivot_table(index=['period', 'compilation'], columns='model', values='rmse')
     npts = df.pivot_table(index=['period', 'compilation'], columns='model', values='n_points')
+    vals = (rmse if value_col == 'rmse' else
+            df.pivot_table(index=['period', 'compilation'], columns='model', values=value_col))
     rmse = rmse.reindex(index=row_keys)
+    vals = vals.reindex(index=row_keys)
 
     # Per-row normalisation: each cell is its signed deviation from a reference RMSE,
     # scaled by the row's largest absolute deviation so the most extreme column reaches
-    # ±1. Below the reference (better) is negative → warm (yellow/red); above (worse) is
-    # positive → cool (blue/purple); the reference itself is the pale centre. This shows
+    # ±1. Below the reference (better) is negative → green; above (worse) is
+    # positive → red; the reference itself is the white centre. This shows
     # model ranking regardless of each row's absolute RMSE. Cells keep absolute °C.
     #
     # The reference is the PMIP4 ensemble mean where that column exists, so every cell
@@ -206,13 +250,14 @@ def make_figure(out_name='carpet_diagram.png', labels=COMPOSITE_LABELS,
     model_order = composites + sorted(individual)
     rmse = rmse.reindex(columns=model_order)
     rel = rel.reindex(columns=model_order)
+    vals = vals.reindex(columns=model_order)
     npts = npts.reindex(index=row_keys, columns=model_order)
 
-    M = rmse.values
+    M = vals.values
     Mn = rel.values
     nrows, ncols = M.shape
 
-    fig_w = max(8.0, 0.55 * ncols + 3.0)
+    fig_w = max(8.0, 0.55 * (ncols + bool(recon_col)) + 3.0)
     fig_h = max(2.6, 0.6 * nrows + 1.8)
     fig, ax = plt.subplots(figsize=(fig_w, fig_h))
 
@@ -222,7 +267,8 @@ def make_figure(out_name='carpet_diagram.png', labels=COMPOSITE_LABELS,
 
     im = ax.imshow(Mn, aspect='auto', cmap=cmap, norm=norm)
 
-    # Cell annotations: absolute RMSE value, with a '*' where the sample is small.
+    # Cell annotations: the printed value (RMSE by default, the mean model anomaly
+    # in the regional figure), with a '*' where the sample is small.
     for i in range(nrows):
         for j in range(ncols):
             v = M[i, j]
@@ -234,12 +280,26 @@ def make_figure(out_name='carpet_diagram.png', labels=COMPOSITE_LABELS,
             color = 'white' if abs(Mn[i, j]) > 0.6 else '#222222'
             ax.text(j, i, txt, ha='center', va='center', fontsize=7.5, color=color)
 
+    # The reconstruction's own weighted mean, in a gutter column past the right
+    # edge of the heatmap. It is a property of the row, not of any model, so it
+    # gets no cell colour — it is the target the model numbers are aiming at.
+    if recon_col:
+        for i, key in enumerate(row_keys):
+            v = recon_by_row.get(key, np.nan)
+            if np.isfinite(v):
+                ax.text(ncols, i, f'{v:.1f}', ha='center', va='center',
+                        fontsize=7.5, color='#222222', fontweight='bold')
+        ax.set_xlim(-0.5, ncols + 0.5)
+        for dx in (-0.085, 0.085):
+            ax.axvline(ncols - 0.5 + dx, color='#222222', linewidth=1.2, zorder=5)
+
     # Axes / ticks
-    ax.set_xticks(range(ncols))
-    ax.set_xticklabels(model_order, rotation=55, ha='right', fontsize=8)
+    ax.set_xticks(range(ncols + bool(recon_col)))
+    ax.set_xticklabels(model_order + (['reconstruction'] if recon_col else []),
+                       rotation=55, ha='right', fontsize=8)
     ax.set_yticks(range(nrows))
     ax.set_yticklabels([f'{p}\n{c}' for p, c in row_keys], fontsize=8.5)
-    ax.set_xticks(np.arange(-.5, ncols, 1), minor=True)
+    ax.set_xticks(np.arange(-.5, ncols, 1), minor=True)  # gridlines on the heatmap only
     ax.set_yticks(np.arange(-.5, nrows, 1), minor=True)
     ax.grid(which='minor', color='white', linewidth=1.5)
     ax.tick_params(which='minor', length=0)
@@ -267,18 +327,28 @@ def make_figure(out_name='carpet_diagram.png', labels=COMPOSITE_LABELS,
                  fontsize=12, fontweight='bold', pad=10)
     centre_txt = (f'the {reference} ensemble-mean RMSE (so {reference} is white by definition)'
                   if reference else 'the row-mean RMSE of the individual models')
-    notes = [f'cell numbers are absolute RMSE (°C); colour is each column vs {centre_txt}']
+    value_txt = value_label or 'absolute RMSE (°C)'
+    notes = [f'cell numbers are {value_txt}; colour is each column\'s RMSE vs {centre_txt}']
+    if recon_col:
+        notes.append('the right-hand column is the same weighted mean of the reconstructions '
+                     '— the value the models are aiming at')
+    if note:
+        notes.insert(0, note)
     if (npts.values[np.isfinite(npts.values)] < MIN_POINTS).any():
         notes.append(f'* fewer than {MIN_POINTS} proxy points — RMSE is noisy')
-    fig.text(0.01, 0.01, '   '.join(notes), fontsize=7.5, color='#555555', ha='left')
+    # One note per line: joining them end to end makes the saved bbox as wide as
+    # the text, which stretches the whole figure.
+    for k, line in enumerate(notes):
+        fig.text(0.01, -0.006 - 0.021 * k, line, fontsize=7.5, color='#555555', ha='left')
 
     if composites:
         lines = ['summary columns are the mean of their members\' RMSEs in each row (mean of '
                  'RMSEs, not RMSE of the ensemble mean), over whichever members ran that period']
         for label in composites:
             lines.append(f'{label} ({len(members[label])}): ' + ', '.join(members[label]))
+        base = -0.006 - 0.021 * len(notes) - 0.008
         for k, line in enumerate(lines):
-            fig.text(0.01, -0.018 - 0.019 * k, line, fontsize=6.5, color='#555555',
+            fig.text(0.01, base - 0.019 * k, line, fontsize=6.5, color='#555555',
                      ha='left', wrap=True)
 
     fig.tight_layout()
