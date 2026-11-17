@@ -39,7 +39,7 @@ _Rationale:_ This manuscript is intended as a position piece to motivate PMIP7. 
 
 * I'm focussing just on surface temperature here (and assuming that SST and SAT anomalies are the same). Each row is a different proxy compilation. Each column is a different model, although the ensmeble mean of PMIP4 and PMIP3 are the first two. 
 
-*First, I've pulled together the existing results from the various single-period papers into a single carpet diagram (top 6 rows). Then I've included some new proxy compilations (middle 3 rows), and finally there are some data assimmilation products. 
+* First, I've pulled together the existing results from the various single-period papers into a single carpet diagram (top 6 rows). Then I've included some new proxy compilations (middle 3 rows), and finally there are some data assimmilation products. 
 
 ![Figure 3: Benchmarking models' surface air temperature across multi-periods, created using the carpet_diagram code.](carpet_diagram/output/carpet_diagram.png)
 [Figure 3: Benchmarking models' surface air temperature across multi-periods, created using the carpet_diagram code.](carpet_diagram/output/carpet_diagram.png)
@@ -57,10 +57,10 @@ _It could be that the lack of any main messages arises from the global averaging
 * Paragraph summarising multi-model studies that include the future: drawing connections within model world
 * Paragraph looking at paleo-constraints. Discuss Lunt et al (2024) constraining ECS directly using PMIP outputs. Jiang Zhu's palaeo-calibrated CESM2 and Peter Hopcroft's work
 * Paragraph pushing into work explaining the physical mechanisms: e.g. Yoshimori et al; He at al
-* Any quantitative examples (maybe Osman et al 2026) 
+* Any quantitative examples (Osman et al 2026) 
 
-![Figure 4: Schematic showing examples of how to leverage insight from paleoclimate models into future projections](future_methodology\PMIP_future_constraint.png)
-[Figure 4: Schematic showing examples of how to leverage insight from paleoclimate models into future projections](future_methodology\PMIP_future_constraint.png)
+![Figure 4: Schematic showing examples of how to leverage insight from paleoclimate models into future projections](future_methodology/PMIP_future_constraint.png)
+[Figure 4: Schematic showing examples of how to leverage insight from paleoclimate models into future projections](future_methodology/PMIP_future_constraint.png)
 
 ### Outlook for PMIP7
 
